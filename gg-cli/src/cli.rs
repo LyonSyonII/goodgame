@@ -17,14 +17,16 @@ pub enum Cli {
     /// Starts to manage the provided game.
     #[clap(alias = "a", alias = "init")]
     Add {
-        #[arg(value_parser = game_name_parser())]
         game: String,
         root: PathBuf,
         save_location: PathBuf,
     },
     /// Deletes the game from the managed list.
     #[clap(alias = "del", alias = "remove")]
-    Delete { game: String },
+    Delete { 
+        #[arg(value_parser = game_name_parser())]
+        game: String
+    },
     /// Creates a backup of the game.  
     ///
     /// If no game name is provided, one will try to be selected based on the current directory.  

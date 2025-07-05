@@ -1,5 +1,5 @@
 use directories::ProjectDirs;
-use std::path::{PathBuf, Path};
+use std::{io::Seek, path::{Path, PathBuf}};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Game {
@@ -52,12 +52,13 @@ impl Games {
         })
     }
 
-    pub fn store(&self) -> std::io::Result<()> {
+    pub fn store(&mut self) -> std::io::Result<()> {
         self.games_file.set_len(0)?;
         if self.inner.is_empty() {
             return Ok(());
         }
-        serde_json::to_writer(&self.games_file, &self.inner).map_err(|e| {
+        self.games_file.rewind()?;
+        serde_json::to_writer(&mut self.games_file, &self.inner).map_err(|e| {
             std::io::Error::other(format!("Could not save to {:#?}: {e}", self.games_path))
         })
     }

@@ -4,7 +4,9 @@ use clap_complete::{generate_to, shells};
 use std::env;
 use std::io::Error;
 
-mod cli { include!("src/cli.rs"); }
+mod cli {
+    include!("src/cli.rs");
+}
 
 fn main() -> Result<(), Error> {
     let mut cmd = cli::Cli::command();
