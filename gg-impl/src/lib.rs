@@ -1,5 +1,8 @@
 use directories::ProjectDirs;
-use std::{io::Seek, path::{Path, PathBuf}};
+use std::{
+    io::Seek,
+    path::{Path, PathBuf},
+};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Game {
@@ -10,7 +13,23 @@ pub struct Game {
 
 impl Game {
     pub fn new(name: String, root: PathBuf, save_location: PathBuf) -> Self {
-        Self { name, root, save_location }
+        Self {
+            name,
+            root,
+            save_location,
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn root(&self) -> &PathBuf {
+        &self.root
+    }
+
+    pub fn save_location(&self) -> &PathBuf {
+        &self.save_location
     }
 }
 
@@ -19,7 +38,7 @@ pub struct Games {
     inner: Vec<Game>,
     dirs: ProjectDirs,
     games_path: PathBuf,
-    games_file: std::fs::File
+    games_file: std::fs::File,
 }
 
 impl Games {
@@ -35,7 +54,9 @@ impl Games {
             .truncate(false)
             .create(true)
             .open(&games_path)
-            .map_err(|e| std::io::Error::other(format!("Could not read {}: {e}", games_path.display())))?;
+            .map_err(|e| {
+                std::io::Error::other(format!("Could not read {}: {e}", games_path.display()))
+            })?;
         let games = if games_file.metadata()?.len() == 0 {
             Vec::new()
         } else {
@@ -48,7 +69,7 @@ impl Games {
             inner: games,
             dirs,
             games_path,
-            games_file
+            games_file,
         })
     }
 
@@ -65,14 +86,17 @@ impl Games {
 
     pub fn push(&mut self, game: Game) {
         let Err(idx) = self.inner.binary_search(&game) else {
-            return
+            return;
         };
         self.inner.insert(idx, game);
     }
 
     pub fn delete(&mut self, name: impl AsRef<str>) -> Option<Game> {
         let name = name.as_ref();
-        let i = self.inner.binary_search_by(|g| g.name.as_str().cmp(name)).ok()?;
+        let i = self
+            .inner
+            .binary_search_by(|g| g.name.as_str().cmp(name))
+            .ok()?;
         Some(self.inner.remove(i))
     }
 
@@ -84,33 +108,38 @@ impl Games {
         self.inner.iter().map(|g| g.name.as_str())
     }
 
-    pub fn get_by_name(&mut self, name: impl AsRef<str>) -> Option<&mut Game> {
+    pub fn get_by_name(&self, name: impl AsRef<str>) -> Option<&Game> {
         let name = name.as_ref();
-        let idx = self.inner.binary_search_by(|g| g.name.as_str().cmp(name)).ok()?;
-        self.inner.get_mut(idx)
+        let idx = self
+            .inner
+            .binary_search_by(|g| g.name.as_str().cmp(name))
+            .ok()?;
+        self.inner.get(idx)
     }
 
-    pub fn get_by_root(&mut self, path: impl AsRef<Path>) -> Option<&mut Game> {
+    pub fn get_by_root(&self, path: impl AsRef<Path>) -> Option<&Game> {
         let path = path.as_ref();
-        self.inner.iter_mut().find(|g| g.root == path)
+        self.inner.iter().find(|g| g.root == path)
     }
 
-    pub fn get_by_save(&mut self, path: impl AsRef<Path>) -> Option<&mut Game> {
+    pub fn get_by_save(&self, path: impl AsRef<Path>) -> Option<&Game> {
         let path = path.as_ref();
-        self.inner.iter_mut().find(|g| g.save_location == path)
+        self.inner.iter().find(|g| g.save_location == path)
     }
 
-    pub fn get_by_current_dir(&mut self) -> Option<&mut Game> {
+    pub fn get_by_current_dir(&self) -> Option<&Game> {
         let curr = std::env::current_dir().ok()?;
         self.inner
-            .iter_mut()
+            .iter()
             .find(|g| g.root == curr || g.save_location == curr)
     }
 }
 
 impl PartialEq for Game {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name || self.root == other.root || self.save_location == other.save_location
+        self.name == other.name
+            || self.root == other.root
+            || self.save_location == other.save_location
     }
 }
 
@@ -133,7 +162,9 @@ impl std::fmt::Display for Games {
         struct FormatterWriter<'a, 'b>(&'a mut std::fmt::Formatter<'b>);
         impl std::io::Write for FormatterWriter<'_, '_> {
             fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-                let _ = self.0.write_str(unsafe { std::str::from_utf8_unchecked(buf) });
+                let _ = self
+                    .0
+                    .write_str(unsafe { std::str::from_utf8_unchecked(buf) });
                 Ok(buf.len())
             }
             fn flush(&mut self) -> std::io::Result<()> {

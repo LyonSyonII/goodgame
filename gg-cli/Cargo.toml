@@ -5,8 +5,8 @@ edition = "2024"
 
 [dependencies]
 goodgame-impl = { version = "0.1.0", path = "../gg-impl" }
-clap = { version = "4.5.40", features = ["derive", "env", "string", "unicode"] }
-clap_complete = "4.5.54"
+clap = { version = "4.5.40", features = ["derive", "env", "string", "unicode", "unstable-ext"] }
+clap_complete = { version = "4.5.54", features = ["unstable-dynamic"] }
 
 [build-dependencies]
 goodgame-impl = { version = "0.1.0", path = "../gg-impl" }
