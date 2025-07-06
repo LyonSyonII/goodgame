@@ -93,7 +93,7 @@ fn game_name_candidates() -> ArgValueCandidates {
 fn game_backup_candidates() -> ArgValueCandidates {
     let Some(game) = std::env::args()
         .rfind(|a| !a.is_empty())
-        .and_then(|chosen| GAMES.get_by_name(chosen))
+        .and_then(|chosen| GAMES.get_by_name(chosen).ok())
     else {
         return ArgValueCandidates::new(Vec::new);
     };

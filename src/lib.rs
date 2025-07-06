@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use directories::ProjectDirs;
 use std::{
     io::Seek,
@@ -109,13 +109,13 @@ impl Games {
         self.inner.iter().map(|g| g.name.as_str())
     }
 
-    pub fn get_by_name(&self, name: impl AsRef<str>) -> Option<&Game> {
+    pub fn get_by_name(&self, name: impl AsRef<str>) -> Result<&Game> {
         let name = name.as_ref();
-        let idx = self
-            .inner
-            .binary_search_by(|g| g.name.as_str().cmp(name))
-            .ok()?;
-        self.inner.get(idx)
+        if let Ok(i) = self.inner.binary_search_by(|g| g.name.as_str().cmp(name)) {
+            Ok(&self.inner[i])
+        } else {
+            bail!("The game {name:?} does not exist")
+        }
     }
 
     pub fn get_by_root(&self, path: impl AsRef<Path>) -> Option<&Game> {

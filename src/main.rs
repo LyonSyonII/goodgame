@@ -22,10 +22,10 @@ fn main() -> Result<()> {
         } => add(game, root, save_location, games),
         cli::Cli::Delete { game } => remove(game, games),
         cli::Cli::List => list(games),
-        cli::Cli::Backup { game, desc } => backup(game, desc, games),
+        cli::Cli::Backup { game, desc } => backup(game.as_deref(), desc.as_deref(), &games),
+        cli::Cli::Restore { game, backup } => restore(game, backup, games),
         cli::Cli::Open { game } => open(game, games),
         cli::Cli::OpenSave { game } => open_save(game, games),
-        cli::Cli::Restore { game, backup } => todo!(),
     }
 }
 
@@ -45,7 +45,7 @@ fn add(game: String, root: PathBuf, save_location: PathBuf, mut games: Games) ->
         bail!("The root and save locations can't be the same");
     }
 
-    if games.get_by_name(&game).is_some() {
+    if games.get_by_name(&game).is_ok() {
         bail!("A game with the name {game:#?} already exists");
     }
     if games.get_by_root(&root).is_some() {
@@ -94,16 +94,18 @@ fn list(games: Games) -> Result<()> {
 
 /// The backup is compressed and called "GAME-IDX" by default.  
 /// If a backup description is provided, the backup will be called "GAME-IDX-DESCRIPTION"
-fn backup(game: Option<String>, desc: Option<String>, games: Games) -> Result<()> {
-    let Some(game) = game
-        .and_then(|n| games.get_by_name(n))
-        .or_else(|| games.get_by_current_dir())
-    else {
+fn backup(game: Option<&str>, desc: Option<&str>, games: &Games) -> Result<()> {
+    let game = if let Some(game) = game {
+        games.get_by_name(game)?
+    } else if let Some(game) = games.get_by_current_dir() {
+        game
+    } else {
         bail!(
             "Could not infer game by the current directory {:?}",
             std::env::current_dir()?.canonicalize()
         )
     };
+
     let backups_path = game.backups_path();
     let name = game.name();
     let idx = backups_path.read_dir()?.count();
@@ -142,20 +144,38 @@ fn backup(game: Option<String>, desc: Option<String>, games: Games) -> Result<()
     Ok(())
 }
 
+fn restore(game: String, target: String, games: Games) -> Result<()> {
+    let game = games.get_by_name(game)?;
+    let backups_path = game.backups_path();
+    let target_path = backups_path.join(&target);
+    target_path
+        .try_exists()
+        .with_context(|| format!("The backup {target_path:?} does not exist"))?;
+    let target_idx = target.split("-").nth(1).unwrap().trim_end_matches(|c: char| !c.is_ascii_digit());
+    backup(Some(game.name()), Some(&format!("replaced-with-{target_idx}")), &games)?;
+
+    let target = std::fs::File::open(&target_path)
+        .with_context(|| format!("Could not open backup {target_path:?}"))?;
+    let zstd = zstd::Decoder::new(target)?;
+
+    let save_location = game.save_location();
+    tar::Archive::new(zstd)
+        .unpack(save_location)
+        .with_context(|| format!("Could not extract backup {target_path:?} to {save_location:?}"))?;
+
+    println!("Successfully restored backup {target_path:?} to {save_location:?}");
+
+    Ok(())
+}
+
 fn open(game: String, games: Games) -> Result<()> {
-    let dir = games
-        .get_by_name(&game)
-        .ok_or_else(|| anyhow!("The Game '{game}' does not exist."))?
-        .root();
+    let dir = games.get_by_name(&game)?.root();
     let _ = std::process::Command::new("xdg-open").arg(dir).spawn()?;
     Ok(())
 }
 
 fn open_save(game: String, games: Games) -> Result<()> {
-    let dir = games
-        .get_by_name(&game)
-        .ok_or_else(|| anyhow!("The Game '{game}' does not exist."))?
-        .save_location();
+    let dir = games.get_by_name(&game)?.save_location();
     let _ = std::process::Command::new("xdg-open").arg(dir).spawn()?;
     Ok(())
 }
