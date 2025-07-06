@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use directories::ProjectDirs;
 use std::{
     io::Seek,
@@ -24,12 +25,16 @@ impl Game {
         &self.name
     }
 
-    pub fn root(&self) -> &PathBuf {
+    pub fn root(&self) -> &Path {
         &self.root
     }
 
-    pub fn save_location(&self) -> &PathBuf {
+    pub fn save_location(&self) -> &Path {
         &self.save_location
+    }
+
+    pub fn backups_location(&self) -> PathBuf {
+        self.root.join("gg-saves")
     }
 }
 
@@ -42,7 +47,7 @@ pub struct Games {
 }
 
 impl Games {
-    pub fn load() -> std::io::Result<Games> {
+    pub fn load() -> Result<Games> {
         let dirs = directories::ProjectDirs::from("com", "lyonsyonii", "gg")
             .expect("Could not get project directories");
         std::fs::create_dir_all(dirs.config_dir())?;
@@ -54,15 +59,12 @@ impl Games {
             .truncate(false)
             .create(true)
             .open(&games_path)
-            .map_err(|e| {
-                std::io::Error::other(format!("Could not read {}: {e}", games_path.display()))
-            })?;
+            .with_context(|| format!("Could not read {}", games_path.display()))?;
         let games = if games_file.metadata()?.len() == 0 {
             Vec::new()
         } else {
-            serde_json::from_reader::<_, Vec<Game>>(&games_file).map_err(|e| {
-                std::io::Error::other(format!("Could not parse {}: {e}", games_path.display()))
-            })?
+            serde_json::from_reader::<_, Vec<Game>>(&games_file)
+                .with_context(|| format!("Could not parse {}", games_path.display()))?
         };
 
         Ok(Games {
@@ -73,15 +75,14 @@ impl Games {
         })
     }
 
-    pub fn store(&mut self) -> std::io::Result<()> {
+    pub fn store(&mut self) -> Result<()> {
         self.games_file.set_len(0)?;
         if self.inner.is_empty() {
             return Ok(());
         }
         self.games_file.rewind()?;
-        serde_json::to_writer(&mut self.games_file, &self.inner).map_err(|e| {
-            std::io::Error::other(format!("Could not save to {:#?}: {e}", self.games_path))
-        })
+        serde_json::to_writer(&mut self.games_file, &self.inner)
+            .with_context(|| format!("Could not save to {:#?}", self.games_path))
     }
 
     pub fn push(&mut self, game: Game) {

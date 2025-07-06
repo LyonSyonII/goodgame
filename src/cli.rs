@@ -18,11 +18,11 @@ pub enum Cli {
     /// Starts to manage the provided game.
     #[clap(alias = "a", alias = "init")]
     Add {
-        #[arg(value_hint = ValueHint::Unknown)]
+        #[arg(value_hint = ValueHint::AnyPath)]
         game: String,
         #[arg(value_hint = ValueHint::DirPath)]
         root: PathBuf,
-        #[arg(value_hint = ValueHint::DirPath)]
+        #[arg(value_hint = ValueHint::AnyPath)]
         save_location: PathBuf,
     },
     /// Deletes the game from the managed list.
@@ -62,12 +62,22 @@ pub enum Cli {
 }
 
 fn game_name_parser() -> clap::builder::PossibleValuesParser {
-    let games = goodgame_impl::Games::load().unwrap();
-    clap::builder::PossibleValuesParser::new(games.names().into_iter().map(str::to_owned))
+    const N: usize = 5;
+    let games = crate::Games::load().unwrap();
+    let mut games = games
+        .names()
+        .into_iter()
+        .map(str::to_owned)
+        .take(N)
+        .collect::<Vec<_>>();
+    if games.len() == N {
+        games.push(String::from("..."));
+    }
+    clap::builder::PossibleValuesParser::new(games)
 }
 
 fn game_name_candidates() -> Vec<clap_complete::CompletionCandidate> {
-    goodgame_impl::Games::load()
+    crate::Games::load()
         .unwrap()
         .names()
         .into_iter()

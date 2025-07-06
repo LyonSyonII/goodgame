@@ -1,3 +1,17 @@
-[workspace]
-resolver = "3"
-members = ["gg-impl", "gg-cli"]
+[package]
+name = "goodgame"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4.5.40", features = ["derive", "env", "string", "unicode" ] }
+clap_complete = { version = "4.5.54", features = ["unstable-dynamic"] }
+serde_json = "1.0.140"
+serde = { version = "1.0.219", features = ["derive"] }
+directories = "6.0.0"
+anyhow = { version = "1.0.98", features = ["backtrace"] }
+
+
+[[bin]]
+name = "gg"
+path = "src/main.rs"
