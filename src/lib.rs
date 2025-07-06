@@ -33,7 +33,7 @@ impl Game {
         &self.save_location
     }
 
-    pub fn backups_location(&self) -> PathBuf {
+    pub fn backups_path(&self) -> PathBuf {
         self.root.join("gg-saves")
     }
 }
