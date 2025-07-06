@@ -137,6 +137,8 @@ fn backup(game: Option<String>, desc: Option<String>, games: Games) -> Result<()
         .and_then(|zstd| zstd.finish())
         .with_context(|| format!("Could not create backup {zstd_path:?}"))?;
 
+    println!("Created backup {zstd_path:?}");
+
     Ok(())
 }
 

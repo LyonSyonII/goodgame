@@ -3,9 +3,10 @@ use std::{
     path::PathBuf,
 };
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use clap::{
-    builder::{styling::AnsiColor, PossibleValue, Styles, ValueParser}, ValueHint
+    ValueHint,
+    builder::{PossibleValue, Styles, ValueParser, styling::AnsiColor},
 };
 use clap_complete::{ArgValueCandidates, ArgValueCompleter, CompletionCandidate};
 use goodgame::{Game, Games};
@@ -32,7 +33,7 @@ pub enum Cli {
     /// Deletes the game from the managed list.
     #[clap(alias = "del", alias = "remove", alias = "rm")]
     Delete {
-        #[arg(value_parser = game_name_parser(), add = game_name_candidates())]
+        #[arg(add = game_name_candidates())]
         game: String,
     },
     /// Creates a backup of the game.  
@@ -43,7 +44,7 @@ pub enum Cli {
     /// If a backup description is provided, the backup will be called "GAME-IDX-DESCRIPTION"
     #[clap(alias = "b", alias = "bk")]
     Backup {
-        #[arg(value_parser = game_name_parser(), add = game_name_candidates())]
+        #[arg(add = game_name_candidates())]
         game: Option<String>,
         #[arg(long, short, value_hint = ValueHint::Other)]
         desc: Option<String>,
@@ -53,9 +54,9 @@ pub enum Cli {
     /// A backup of the current save will be created.
     #[clap(alias = "r", alias = "rs")]
     Restore {
-        #[arg(value_parser = game_name_parser(), add = game_name_candidates())]
+        #[arg(add = game_name_candidates())]
         game: String,
-        #[arg(value_parser = game_backup_parser(), add = game_backup_candidates())]
+        #[arg(add = game_backup_candidates(), requires = "game")]
         backup: String,
     },
     /// Lists all managed games.
@@ -64,35 +65,21 @@ pub enum Cli {
     /// Opens the root directory of the game.
     #[clap(alias = "o")]
     Open {
-        #[arg(value_parser = game_name_parser(), add = game_name_candidates())]
+        #[arg(add = game_name_candidates())]
         game: String,
     },
     /// Opens the save directory of the game.
     #[clap(alias = "os")]
     OpenSave {
-        #[arg(value_parser = game_name_parser(), add = game_name_candidates())]
+        #[arg(add = game_name_candidates())]
         game: String,
     },
 }
 
 static GAMES: std::sync::LazyLock<Games> = std::sync::LazyLock::new(|| Games::load().unwrap());
-static CLAP_CHOSEN_GAME: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 
 fn possible_game_names() -> impl IntoIterator<Item = &'static str> {
     GAMES.names()
-}
-fn game_name_parser() -> clap::builder::PossibleValuesParser {
-    const N: usize = 5;
-    // let _ = CLAP_CHOSEN_GAME.set(s.to_owned());
-    let mut games = possible_game_names()
-        .into_iter()
-        .take(N)
-        .map(PossibleValue::new)
-        .collect::<Vec<_>>();
-    if games.len() == N {
-        games.push(String::from("...").into());
-    }
-    clap::builder::PossibleValuesParser::new(games)
 }
 fn game_name_candidates() -> ArgValueCandidates {
     ArgValueCandidates::new(|| {
@@ -103,33 +90,21 @@ fn game_name_candidates() -> ArgValueCandidates {
     })
 }
 
-fn possible_game_backups() -> Vec<String> {
-    let Some(chosen) = CLAP_CHOSEN_GAME.get() else {
-        return Vec::new();
-    };
-    let Some(game) = GAMES.get_by_name(chosen) else {
-        // println!("Game {chosen:?} is not being managed");
-        return Vec::new();
-    };
-    game
-        .backups_path()
-        .read_dir()
-        .unwrap()
-        .flatten()
-        .map(|f| f.file_name().to_string_lossy().into_owned())
-        .collect()
-}
-fn game_backup_parser() -> clap::builder::PossibleValuesParser {
-    clap::builder::PossibleValuesParser::new(possible_game_backups())
-}
-
 fn game_backup_candidates() -> ArgValueCandidates {
+    let Some(game) = std::env::args()
+        .rfind(|a| !a.is_empty())
+        .and_then(|chosen| GAMES.get_by_name(chosen))
+    else {
+        return ArgValueCandidates::new(Vec::new);
+    };
+
     ArgValueCandidates::new(|| {
-        crate::Games::load()
+        game.backups_path()
+            .read_dir()
             .unwrap()
-            .names()
-            .into_iter()
+            .flatten()
+            .map(|f| f.file_name().to_string_lossy().into_owned())
             .map(CompletionCandidate::new)
-            .collect::<Vec<_>>()
+            .collect()
     })
 }
