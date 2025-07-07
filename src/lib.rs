@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, anyhow, bail};
-use directories::ProjectDirs;
+use serde::{Deserialize, Serialize};
 use std::{
     io::Seek,
     path::{Path, PathBuf},
@@ -41,18 +41,39 @@ impl Game {
 #[derive(Debug)]
 pub struct Games {
     inner: Vec<Game>,
-    dirs: ProjectDirs,
-    games_path: PathBuf,
+    data_dir: PathBuf,
     games_file: std::fs::File,
+    config: Config,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct Config {
+    pub backup: Backup
+}
+#[derive(Debug, Deserialize, Default)]
+pub struct Backup {
+    pub create_cloud_command: String,
+    pub commit_cloud_command: String,
+    pub push_cloud_command: String
 }
 
 impl Games {
     pub fn load() -> Result<Games> {
-        let dirs = directories::ProjectDirs::from("com", "lyonsyonii", "gg")
-            .expect("Could not get project directories");
-        std::fs::create_dir_all(dirs.config_dir())?;
+        let config = std::fs::File::open("/etc/goodgame/config.json")
+            .with_context(|| "Could not open config file /etc/goodgame/config.json".to_string())
+            .and_then(|config| {
+                serde_json::from_reader::<_, Config>(config).with_context(|| {
+                    "Could not parse config file /etc/goodgame/config.json".to_string()
+                })
+            }).unwrap_or_default();
 
-        let games_path = dirs.config_dir().join("games.json");
+        let data_dir = std::env::var("XDG_DATA_HOME")
+            .or_else(|_| std::env::var("HOME").map(|h| h + "/.local/share"))
+            .map(|s| PathBuf::from(s + "/goodgame"))
+            .map_err(|_| anyhow!("Could not obtain data directory"))?;
+        std::fs::create_dir_all(&data_dir)?;
+
+        let games_path = data_dir.join(Self::games_file_name());
         let games_file = std::fs::OpenOptions::new()
             .read(true)
             .write(true)
@@ -69,8 +90,8 @@ impl Games {
 
         Ok(Games {
             inner: games,
-            dirs,
-            games_path,
+            config,
+            data_dir,
             games_file,
         })
     }
@@ -82,7 +103,7 @@ impl Games {
         }
         self.games_file.rewind()?;
         serde_json::to_writer(&mut self.games_file, &self.inner)
-            .with_context(|| format!("Could not save to {:#?}", self.games_path))
+            .with_context(|| format!("Could not save to {}", self.games_path().display()))
     }
 
     pub fn push(&mut self, game: Game) {
@@ -107,6 +128,14 @@ impl Games {
 
     pub fn names(&self) -> impl IntoIterator<Item = &str> {
         self.inner.iter().map(|g| g.name.as_str())
+    }
+
+    pub fn games_file_name() -> &'static str {
+        "games.json"
+    }
+
+    pub fn games_path(&self) -> PathBuf {
+        self.data_dir.join(Self::games_file_name())
     }
 
     pub fn get_by_name(&self, name: impl AsRef<str>) -> Result<&Game> {

@@ -32,10 +32,10 @@ fn main() -> Result<()> {
 fn add(game: String, root: PathBuf, save_location: PathBuf, mut games: Games) -> Result<()> {
     let root = root
         .canonicalize()
-        .with_context(|| format!("Failed to get root {root:?}"))?;
+        .with_context(|| format!("Failed to get root {}", root.display()))?;
     let save_location = save_location
         .canonicalize()
-        .with_context(|| format!("Failed to get save location {save_location:?}"))?;
+        .with_context(|| format!("Failed to get save location {}", save_location.display()))?;
 
     if !root.is_dir() {
         bail!("The root must be a directory");
@@ -49,16 +49,16 @@ fn add(game: String, root: PathBuf, save_location: PathBuf, mut games: Games) ->
         bail!("A game with the name {game:#?} already exists");
     }
     if games.get_by_root(&root).is_some() {
-        bail!("A game with the root {root:#?} already exists");
+        bail!("A game with the root {} already exists", root.display());
     }
     if games.get_by_save(&save_location).is_some() {
-        bail!("A game with the save location {save_location:#?} already exists");
+        bail!("A game with the save location {} already exists", save_location.display());
     }
 
     let save_symlink = root.join("gg-save-loc");
     if !save_symlink.exists() {
         std::os::unix::fs::symlink(&save_location, &save_symlink).with_context(|| {
-            format!("Could not create symlink from {save_location:?} to {save_symlink:?}")
+            format!("Could not create symlink from {} to {}", save_location.display(), save_symlink.display())
         })?;
     }
 
@@ -67,7 +67,7 @@ fn add(game: String, root: PathBuf, save_location: PathBuf, mut games: Games) ->
     let backups_location = game.backups_path();
     if !backups_location.exists() {
         std::fs::create_dir(&backups_location)
-            .with_context(|| format!("Could not create backups location {backups_location:?}"))?;
+            .with_context(|| format!("Could not create backups location {}", backups_location.display()))?;
     }
 
     games.push(game.clone());
@@ -101,8 +101,8 @@ fn backup(game: Option<&str>, desc: Option<&str>, games: &Games) -> Result<()> {
         game
     } else {
         bail!(
-            "Could not infer game by the current directory {:?}",
-            std::env::current_dir()?.canonicalize()
+            "Could not infer game by the current directory {}",
+            std::env::current_dir()?.canonicalize()?.display()
         )
     };
 
@@ -118,28 +118,28 @@ fn backup(game: Option<&str>, desc: Option<&str>, games: &Games) -> Result<()> {
 
     let zstd_path = backups_path.with_extension("tar.zst");
     let zstd = std::fs::File::create(&zstd_path)
-        .with_context(|| format!("Could not create save backup {zstd_path:?}"))?;
+        .with_context(|| format!("Could not create save backup {}", zstd_path.display()))?;
     let zstd = zstd::Encoder::new(zstd, 9)?;
 
     let mut tar_builder = tar::Builder::new(zstd);
     if game.save_location().is_dir() {
         tar_builder
             .append_dir_all("", game.save_location())
-            .with_context(|| format!("Could not archive directory {:?}", game.save_location()))?;
+            .with_context(|| format!("Could not archive directory {}", game.save_location().display()))?;
     } else {
         tar_builder
             .append_file(
                 game.save_location().file_name().unwrap(),
                 &mut std::fs::File::open(game.save_location())?,
             )
-            .with_context(|| format!("Could not archive file {:?}", game.save_location()))?;
+            .with_context(|| format!("Could not archive file {}", game.save_location().display()))?;
     }
     tar_builder
         .into_inner()
         .and_then(|zstd| zstd.finish())
-        .with_context(|| format!("Could not create backup {zstd_path:?}"))?;
+        .with_context(|| format!("Could not create backup {}", zstd_path.display()))?;
 
-    println!("Created backup {zstd_path:?}");
+    println!("Created backup {}", zstd_path.display());
 
     Ok(())
 }
@@ -150,20 +150,20 @@ fn restore(game: String, target: String, games: Games) -> Result<()> {
     let target_path = backups_path.join(&target);
     target_path
         .try_exists()
-        .with_context(|| format!("The backup {target_path:?} does not exist"))?;
+        .with_context(|| format!("The backup {} does not exist", target_path.display()))?;
     let target_idx = target.split("-").nth(1).unwrap().trim_end_matches(|c: char| !c.is_ascii_digit());
     backup(Some(game.name()), Some(&format!("replaced-with-{target_idx}")), &games)?;
 
     let target = std::fs::File::open(&target_path)
-        .with_context(|| format!("Could not open backup {target_path:?}"))?;
+        .with_context(|| format!("Could not open backup {}", target_path.display()))?;
     let zstd = zstd::Decoder::new(target)?;
 
     let save_location = game.save_location();
     tar::Archive::new(zstd)
         .unpack(save_location)
-        .with_context(|| format!("Could not extract backup {target_path:?} to {save_location:?}"))?;
+        .with_context(|| format!("Could not extract backup {} to {}", target_path.display(), save_location.display()))?;
 
-    println!("Successfully restored backup {target_path:?} to {save_location:?}");
+    println!("Successfully restored backup {} to {}", target_path.display(), save_location.display());
 
     Ok(())
 }

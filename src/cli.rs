@@ -3,7 +3,6 @@ use std::{
     path::PathBuf,
 };
 
-use anyhow::{Result, anyhow};
 use clap::{
     ValueHint,
     builder::{PossibleValue, Styles, ValueParser, styling::AnsiColor},
