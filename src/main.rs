@@ -1,9 +1,9 @@
 mod cli;
 
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, Parser};
 use goodgame::{Game, Games};
-use std::path::PathBuf;
+use std::{path::{Path, PathBuf}, process::Command};
 
 fn main() -> Result<()> {
     // echo "source (COMPLETE=fish your_program | psub)" >> ~/.config/fish/config.fish
@@ -52,13 +52,20 @@ fn add(game: String, root: PathBuf, save_location: PathBuf, mut games: Games) ->
         bail!("A game with the root {} already exists", root.display());
     }
     if games.get_by_save(&save_location).is_some() {
-        bail!("A game with the save location {} already exists", save_location.display());
+        bail!(
+            "A game with the save location {} already exists",
+            save_location.display()
+        );
     }
 
     let save_symlink = root.join("gg-save-loc");
     if !save_symlink.exists() {
         std::os::unix::fs::symlink(&save_location, &save_symlink).with_context(|| {
-            format!("Could not create symlink from {} to {}", save_location.display(), save_symlink.display())
+            format!(
+                "Could not create symlink from {} to {}",
+                save_location.display(),
+                save_symlink.display()
+            )
         })?;
     }
 
@@ -66,14 +73,18 @@ fn add(game: String, root: PathBuf, save_location: PathBuf, mut games: Games) ->
 
     let backups_location = game.backups_path();
     if !backups_location.exists() {
-        std::fs::create_dir(&backups_location)
-            .with_context(|| format!("Could not create backups location {}", backups_location.display()))?;
+        std::fs::create_dir(&backups_location).with_context(|| {
+            format!(
+                "Could not create backups location {}",
+                backups_location.display()
+            )
+        })?;
     }
 
+    run_command(games.cloud_init_command(&game), "cloud init", game.root())?;
+
     games.push(game.clone());
-
     games.store()?;
-
     println!("Now managing {game:#?}");
 
     Ok(())
@@ -125,14 +136,21 @@ fn backup(game: Option<&str>, desc: Option<&str>, games: &Games) -> Result<()> {
     if game.save_location().is_dir() {
         tar_builder
             .append_dir_all("", game.save_location())
-            .with_context(|| format!("Could not archive directory {}", game.save_location().display()))?;
+            .with_context(|| {
+                format!(
+                    "Could not archive directory {}",
+                    game.save_location().display()
+                )
+            })?;
     } else {
         tar_builder
             .append_file(
                 game.save_location().file_name().unwrap(),
                 &mut std::fs::File::open(game.save_location())?,
             )
-            .with_context(|| format!("Could not archive file {}", game.save_location().display()))?;
+            .with_context(|| {
+                format!("Could not archive file {}", game.save_location().display())
+            })?;
     }
     tar_builder
         .into_inner()
@@ -140,6 +158,9 @@ fn backup(game: Option<&str>, desc: Option<&str>, games: &Games) -> Result<()> {
         .with_context(|| format!("Could not create backup {}", zstd_path.display()))?;
 
     println!("Created backup {}", zstd_path.display());
+
+    run_command(games.cloud_commit_command(game), "cloud commit", game.root())?;
+    run_command(games.cloud_push_command(game), "cloud push", game.root())?;
 
     Ok(())
 }
@@ -151,8 +172,16 @@ fn restore(game: String, target: String, games: Games) -> Result<()> {
     target_path
         .try_exists()
         .with_context(|| format!("The backup {} does not exist", target_path.display()))?;
-    let target_idx = target.split("-").nth(1).unwrap().trim_end_matches(|c: char| !c.is_ascii_digit());
-    backup(Some(game.name()), Some(&format!("replaced-with-{target_idx}")), &games)?;
+    let target_idx = target
+        .split("-")
+        .nth(1)
+        .unwrap()
+        .trim_end_matches(|c: char| !c.is_ascii_digit());
+    backup(
+        Some(game.name()),
+        Some(&format!("replaced-with-{target_idx}")),
+        &games,
+    )?;
 
     let target = std::fs::File::open(&target_path)
         .with_context(|| format!("Could not open backup {}", target_path.display()))?;
@@ -161,21 +190,63 @@ fn restore(game: String, target: String, games: Games) -> Result<()> {
     let save_location = game.save_location();
     tar::Archive::new(zstd)
         .unpack(save_location)
-        .with_context(|| format!("Could not extract backup {} to {}", target_path.display(), save_location.display()))?;
+        .with_context(|| {
+            format!(
+                "Could not extract backup {} to {}",
+                target_path.display(),
+                save_location.display()
+            )
+        })?;
 
-    println!("Successfully restored backup {} to {}", target_path.display(), save_location.display());
+    run_command(games.cloud_commit_command(game), "cloud commit", game.root())?;
+    run_command(games.cloud_push_command(game), "cloud push", game.root())?;
+
+    println!(
+        "Successfully restored backup {} to {}",
+        target_path.display(),
+        save_location.display()
+    );
 
     Ok(())
 }
 
 fn open(game: String, games: Games) -> Result<()> {
     let dir = games.get_by_name(&game)?.root();
-    let _ = std::process::Command::new("xdg-open").arg(dir).spawn()?;
+    let _ = Command::new("xdg-open").arg(dir).spawn()?;
     Ok(())
 }
 
 fn open_save(game: String, games: Games) -> Result<()> {
     let dir = games.get_by_name(&game)?.save_location();
-    let _ = std::process::Command::new("xdg-open").arg(dir).spawn()?;
+    let _ = Command::new("xdg-open").arg(dir).spawn()?;
+    Ok(())
+}
+
+fn run_command(cmd: Option<Command>, desc: &str, cwd: &Path) -> Result<()> {
+    let Some(mut cmd) = cmd else {
+        println!("Command {desc} not configured, skipping...");
+        return Ok(());
+    };
+    println!("Running cloud commit...");
+
+    let original_dir = std::env::current_dir()?;
+    std::env::set_current_dir(cwd).with_context(|| format!("Could not access directory {}", cwd.display()))?;
+
+    let out = cmd.status().with_context(|| {
+        format!(
+            "Failed to execute command '{desc}': {}",
+            cmd.get_args().nth(1).unwrap().display()
+        )
+    })?;
+    if !out.success() {
+        bail!(
+            "Command '{desc}' exited with code {}: {}",
+            out.code().unwrap_or(0),
+            cmd.get_args().nth(1).unwrap().display()
+        )
+    }
+
+    std::env::set_current_dir(original_dir)?;
+
     Ok(())
 }

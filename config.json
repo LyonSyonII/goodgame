@@ -1,0 +1,17 @@
+{
+	"backup": {
+		"cloud_init_commands": [
+			"git init",
+			"echo -e '*\\n!gg-saves\\n!.gitignore' > .gitignore",
+			"glab repo create $NAME --private --defaultBranch main --skipGitInit",
+			"git add .",
+			"git commit -m first",
+			"git push --set-upstream origin main"
+		],
+		"cloud_commit_commands": [ 
+			"git add .",
+			"git commit -m 'backup'"
+		],
+		"cloud_push_commands": [ "git push" ]
+	}
+}

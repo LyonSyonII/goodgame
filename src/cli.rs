@@ -1,14 +1,11 @@
-use std::{
-    ffi::{OsStr, OsString},
-    path::PathBuf,
-};
+use std::path::PathBuf;
 
 use clap::{
     ValueHint,
-    builder::{PossibleValue, Styles, ValueParser, styling::AnsiColor},
+    builder::{Styles, styling::AnsiColor},
 };
-use clap_complete::{ArgValueCandidates, ArgValueCompleter, CompletionCandidate};
-use goodgame::{Game, Games};
+use clap_complete::{ArgValueCandidates, CompletionCandidate};
+use goodgame::Games;
 
 const CLAP_STYLE: Styles = Styles::styled()
     .header(AnsiColor::Green.on_default().bold())

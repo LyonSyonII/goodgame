@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, anyhow, bail};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::{
     io::Seek,
     path::{Path, PathBuf},
@@ -48,13 +48,27 @@ pub struct Games {
 
 #[derive(Debug, Deserialize, Default)]
 pub struct Config {
-    pub backup: Backup
+    pub backup: Backup,
 }
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize)]
+#[serde(default)]
 pub struct Backup {
-    pub create_cloud_command: String,
-    pub commit_cloud_command: String,
-    pub push_cloud_command: String
+    /// Template for the $NAME variable that will be replaced on the other commands.
+    pub cloud_name_template: String,
+    pub cloud_init_commands: Vec<String>,
+    pub cloud_commit_commands: Vec<String>,
+    pub cloud_push_commands: Vec<String>,
+}
+
+impl Default for Backup {
+    fn default() -> Self {
+        Self {
+            cloud_name_template: String::from("gg-$GAME"),
+            cloud_init_commands: Default::default(),
+            cloud_commit_commands: Default::default(),
+            cloud_push_commands: Default::default(),
+        }
+    }
 }
 
 impl Games {
@@ -65,7 +79,8 @@ impl Games {
                 serde_json::from_reader::<_, Config>(config).with_context(|| {
                     "Could not parse config file /etc/goodgame/config.json".to_string()
                 })
-            }).unwrap_or_default();
+            })
+            .unwrap_or_default();
 
         let data_dir = std::env::var("XDG_DATA_HOME")
             .or_else(|_| std::env::var("HOME").map(|h| h + "/.local/share"))
@@ -161,7 +176,39 @@ impl Games {
         let curr = std::env::current_dir().ok()?;
         self.inner
             .iter()
-            .find(|g| g.root == curr || g.save_location == curr)
+            .find(|&g| g.root == curr || g.save_location == curr)
+    }
+
+    fn commands_to_process(cmds: &[String], template: &str, game: &str) -> Option<std::process::Command> {
+        if cmds.is_empty() {
+            return None;
+        }
+        let cmd = cmds.join(" && ");
+        let mut p = std::process::Command::new("sh");
+        let template = template.replace("$GAME", game);
+        p.args([String::from("-c"), cmd.replace("$NAME", &template)]);
+        Some(p)
+    }
+    pub fn cloud_init_command(&self, game: &Game) -> Option<std::process::Command> {
+        Self::commands_to_process(
+            &self.config.backup.cloud_init_commands,
+            &self.config.backup.cloud_name_template,
+            game.name(),
+        )
+    }
+    pub fn cloud_commit_command(&self, game: &Game) -> Option<std::process::Command> {
+        Self::commands_to_process(
+            &self.config.backup.cloud_commit_commands,
+            &self.config.backup.cloud_name_template,
+            game.name(),
+        )
+    }
+    pub fn cloud_push_command(&self, game: &Game) -> Option<std::process::Command> {
+        Self::commands_to_process(
+            &self.config.backup.cloud_push_commands,
+            &self.config.backup.cloud_name_template,
+            game.name(),
+        )
     }
 }
 
@@ -189,19 +236,19 @@ impl Ord for Game {
 
 impl std::fmt::Display for Games {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Trick serde_json into writing to std::fmt::Formatter
         struct FormatterWriter<'a, 'b>(&'a mut std::fmt::Formatter<'b>);
         impl std::io::Write for FormatterWriter<'_, '_> {
             fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-                let _ = self
-                    .0
-                    .write_str(unsafe { std::str::from_utf8_unchecked(buf) });
+                // SAFETY: The original message is already utf8
+                let FormatterWriter(fmt) = self;
+                let _ = fmt.write_str(unsafe { std::str::from_utf8_unchecked(buf) });
                 Ok(buf.len())
             }
             fn flush(&mut self) -> std::io::Result<()> {
                 Ok(())
             }
         }
-        let writer = FormatterWriter(f);
-        serde_json::to_writer_pretty(writer, &self.games()).map_err(|_| std::fmt::Error)
+        serde_json::to_writer_pretty(FormatterWriter(f), &self.games()).map_err(|_| std::fmt::Error)
     }
 }
