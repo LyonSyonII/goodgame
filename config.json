@@ -5,7 +5,8 @@
 			"echo -e '*\\n!gg-saves\\n!.gitignore' > .gitignore",
 			"glab repo create $NAME --private --defaultBranch main --skipGitInit",
 			"git add .",
-			"git commit -m first",
+			"git commit -m first || true",
+            "git remote add origin git@gitlab.com:LyonSyonII/$NAME",
 			"git push --set-upstream origin main"
 		],
 		"cloud_commit_commands": [ 

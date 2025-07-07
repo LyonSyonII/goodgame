@@ -78,6 +78,9 @@ fn possible_game_names() -> impl IntoIterator<Item = &'static str> {
     GAMES.names()
 }
 fn game_name_candidates() -> ArgValueCandidates {
+    if std::env::args().count() <= 2 {
+        return ArgValueCandidates::new(std::vec::Vec::new)
+    }
     ArgValueCandidates::new(|| {
         possible_game_names()
             .into_iter()
@@ -87,6 +90,9 @@ fn game_name_candidates() -> ArgValueCandidates {
 }
 
 fn game_backup_candidates() -> ArgValueCandidates {
+    if std::env::args().count() <= 2 {
+        return ArgValueCandidates::new(std::vec::Vec::new)
+    }
     let Some(game) = std::env::args()
         .rfind(|a| !a.is_empty())
         .and_then(|chosen| GAMES.get_by_name(chosen).ok())

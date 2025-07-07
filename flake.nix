@@ -32,6 +32,8 @@
           # stable
           nightly
           fenix.targets.${target}.latest.rust-std
+
+          (pkgs.callPackage ./default.nix {})
         ];
 
         buildInputs = with pkgs; [
@@ -54,4 +56,5 @@
         program = "${(pkgs.writeShellScript "shell-init" "${nightly}/bin/cargo init")}";
       };
     });
+
 }
