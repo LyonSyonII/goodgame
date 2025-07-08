@@ -13,14 +13,14 @@ in
     };
     settings = {
       shell = lib.mkOption {
-        type = lib.types.string;
+        type = lib.types.str;
         description = "Shell that will be used to execute the commands";
         default = lib.getExe pkgs.bash;
         example = lib.getExe pkgs.fish;
       };
       run = {
         commands = lib.mkOption {
-          type = lib.types.listOf lib.types.string;
+          type = lib.types.listOf lib.types.str;
           description = "List of commands to run the game";
           default = [];
           example = [ "WINEPREFIX=$(realpath ./wine) wine Minecraft.exe" ];
@@ -28,7 +28,7 @@ in
       };
       backup = {
         cloudInitCommands = lib.mkOption {
-          type = lib.types.listOf lib.types.string;
+          type = lib.types.listOf lib.types.str;
           description = "List of commands to initialize the cloud backup.\nAll the commands will be concatenated with '&&'.";
           default = [];
           example = [
@@ -41,7 +41,7 @@ in
           ];
         };
         cloudCommitCommands = lib.mkOption {
-          type = lib.types.listOf lib.types.string;
+          type = lib.types.listOf lib.types.str;
           description = "List of commands to commit changes to cloud backup.\nAll the commands will be concatenated with '&&'.";
           default = [];
           example = [
@@ -50,7 +50,7 @@ in
           ];
         };
         cloudPushCommands = lib.mkOption {
-          type = lib.types.listOf lib.types.string;
+          type = lib.types.listOf lib.types.str;
           description = "List of commands to push changes to cloud backup.\nAll the commands will be concatenated with '&&'.";
           default = [];
           example = [
@@ -66,6 +66,6 @@ in
     environment.systemPackages = [
       cfg.package
     ];
-    environment.etc."goodgame/config.json" = builtins.toJSON cfg.settings;
+    environment.etc."goodgame/config.json".text = builtins.toJSON cfg.settings;
   };
 }
