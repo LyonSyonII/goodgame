@@ -9,12 +9,14 @@ pub struct Config {
 }
 
 #[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct Run {
     pub run_commands: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Default)]
 #[serde(default)]
+#[serde(rename_all = "camelCase")]
 pub struct Backup {
     pub cloud_init_commands: Vec<String>,
     pub cloud_commit_commands: Vec<String>,
