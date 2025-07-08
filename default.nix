@@ -66,6 +66,6 @@ in
     environment.systemPackages = [
       cfg.package
     ];
-    environment.etc."goodgame/config.json" = builtins.toJson cfg.settings;
+    environment.etc."goodgame/config.json" = builtins.toJSON cfg.settings;
   };
 }
