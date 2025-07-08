@@ -22,20 +22,37 @@ fn main() -> Result<()> {
             game,
             root,
             save_location,
+            skip_cloud,
             executable,
-            run_commands
-        } => add(game, root, save_location, executable, run_commands, games),
+            run_commands,
+        } => add(
+            game,
+            root,
+            save_location,
+            skip_cloud,
+            executable,
+            run_commands,
+            games,
+        ),
         cli::Cli::Remove { game } => remove(game, games),
         cli::Cli::List => list(games),
-        cli::Cli::Backup { game, desc } => backup(game.as_deref(), desc.as_deref(), &games),
-        cli::Cli::Restore { game, backup } => restore(game, backup, games),
+        cli::Cli::Backup { game, desc, skip_cloud } => backup(game.as_deref(), desc.as_deref(), skip_cloud, &games),
+        cli::Cli::Restore { game, backup, skip_cloud } => restore(game, backup, skip_cloud, games),
         cli::Cli::Open { game, save } => open(game, save, games),
         cli::Cli::Run { game, skip_cloud } => run(game, skip_cloud, games),
-        cli::Cli::Config => print_config(games)
+        cli::Cli::Config => print_config(games),
     }
 }
 
-fn add(game: String, root: PathBuf, save_location: PathBuf, mut executable: Option<PathBuf>, run_commands: Option<Vec<String>>, mut games: Games) -> Result<()> {
+fn add(
+    game: String,
+    root: PathBuf,
+    save_location: PathBuf,
+    skip_cloud: bool,
+    mut executable: Option<PathBuf>,
+    run_commands: Option<Vec<String>>,
+    mut games: Games,
+) -> Result<()> {
     let root = root
         .canonicalize()
         .with_context(|| format!("Failed to get root {}", root.display()))?;
@@ -43,7 +60,9 @@ fn add(game: String, root: PathBuf, save_location: PathBuf, mut executable: Opti
         .canonicalize()
         .with_context(|| format!("Failed to get save location {}", save_location.display()))?;
     if let Some(exe) = &mut executable {
-        *exe = exe.canonicalize().with_context(|| format!("Failed to get executable {}", exe.display()))?;
+        *exe = exe
+            .canonicalize()
+            .with_context(|| format!("Failed to get executable {}", exe.display()))?;
     }
 
     if !root.is_dir() {
@@ -77,7 +96,9 @@ fn add(game: String, root: PathBuf, save_location: PathBuf, mut executable: Opti
         })?;
     }
 
-    run_command(games.cloud_init_command(&game), "cloud init", game.root())?;
+    if !skip_cloud && games.get_by_name(game.name()).is_err() {
+        run_command(games.cloud_init_command(&game), "cloud init", game.root())?;
+    }
 
     let game_s = format!("{game:#?}");
     games.push(game);
@@ -102,7 +123,7 @@ fn list(games: Games) -> Result<()> {
 
 /// The backup is compressed and called "GAME-IDX" by default.  
 /// If a backup description is provided, the backup will be called "GAME-IDX-DESCRIPTION"
-fn backup(game: Option<&str>, desc: Option<&str>, games: &Games) -> Result<()> {
+fn backup(game: Option<&str>, desc: Option<&str>, skip_cloud: bool, games: &Games) -> Result<()> {
     let game = games.try_get(game)?;
     let backups_path = game.backups_path();
     let name = game.name();
@@ -146,17 +167,19 @@ fn backup(game: Option<&str>, desc: Option<&str>, games: &Games) -> Result<()> {
 
     println!("Created backup {}", zstd_path.display());
 
-    run_command(
-        games.cloud_commit_command(game),
-        "cloud commit",
-        game.root(),
-    )?;
-    run_command(games.cloud_push_command(game), "cloud push", game.root())?;
+    if !skip_cloud {
+        run_command(
+            games.cloud_commit_command(game),
+            "cloud commit",
+            game.root(),
+        )?;
+        run_command(games.cloud_push_command(game), "cloud push", game.root())?;
+    }
 
     Ok(())
 }
 
-fn restore(game: String, target: String, games: Games) -> Result<()> {
+fn restore(game: String, target: String, skip_cloud: bool, games: Games) -> Result<()> {
     let game = games.get_by_name(game)?;
     let backups_path = game.backups_path();
     let target_path = backups_path.join(&target);
@@ -171,6 +194,7 @@ fn restore(game: String, target: String, games: Games) -> Result<()> {
     backup(
         Some(game.name()),
         Some(&format!("replaced-with-{target_idx}")),
+        skip_cloud,
         &games,
     )?;
 
@@ -189,12 +213,14 @@ fn restore(game: String, target: String, games: Games) -> Result<()> {
             )
         })?;
 
-    run_command(
-        games.cloud_commit_command(game),
-        "cloud commit",
-        game.root(),
-    )?;
-    run_command(games.cloud_push_command(game), "cloud push", game.root())?;
+    if !skip_cloud {
+        run_command(
+            games.cloud_commit_command(game),
+            "cloud commit",
+            game.root(),
+        )?;
+        run_command(games.cloud_push_command(game), "cloud push", game.root())?;
+    }
 
     println!(
         "Successfully restored backup {} to {}",
@@ -223,9 +249,8 @@ fn run(
 ) -> std::result::Result<(), anyhow::Error> {
     let game = games.try_get(game)?;
     run_command(games.run_command(game), "run game", game.root())?;
-    if !skip_cloud {
-        backup(Some(game.name()), None, &games)?;
-    }
+
+    backup(Some(game.name()), None, skip_cloud, &games)?;
 
     Ok(())
 }

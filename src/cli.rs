@@ -29,6 +29,8 @@ pub enum Cli {
         /// If not provided, the global one will be used, replacing $EXE with the above executable.
         #[arg(short, long="run")]
         run_commands: Option<Vec<String>>,
+        #[arg(short, long="skip-cloud")]
+        skip_cloud: bool,
         /// The name of the game to manage.
         #[arg(value_hint = ValueHint::AnyPath)]
         game: String,
@@ -60,12 +62,16 @@ pub enum Cli {
         /// Description that will be appended to the backup name.
         #[arg(long, short, value_hint = ValueHint::Other)]
         desc: Option<String>,
+        #[arg(short, long="skip-cloud")]
+        skip_cloud: bool,
     },
     /// Restores the selected save backup.
     ///
     /// A backup of the current save will be created.
     #[clap()]
     Restore {
+        #[arg(short, long="skip-cloud")]
+        skip_cloud: bool,
         /// Name of the game to restore the save backup.
         #[arg(add = game_name_candidates())]
         game: String,
