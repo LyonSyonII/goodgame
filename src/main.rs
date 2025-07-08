@@ -234,7 +234,7 @@ fn run_command(cmd: Option<Command>, desc: &str, cwd: &Path) -> Result<()> {
         println!("Command {desc} not configured, skipping...");
         return Ok(());
     };
-    println!("Running cloud commit...");
+    println!("Running {desc}...");
 
     let original_dir = std::env::current_dir()?;
     std::env::set_current_dir(cwd)
