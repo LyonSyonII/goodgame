@@ -135,27 +135,27 @@ impl Games {
         }
     }
 
-    fn commands_to_process(cmds: &[String], game: &Game) -> Option<std::process::Command> {
+    fn commands_to_process(&self, cmds: &[String], game: &Game) -> Option<std::process::Command> {
         if cmds.is_empty() {
             return None;
         }
         let cmds = cmds.join(" && ");
-        let mut p = std::process::Command::new("sh");
+        let mut p = std::process::Command::new(&self.config.shell);
         p.args([String::from("-c"), game.replace_vars(cmds)]);
         Some(p)
     }
     pub fn cloud_init_command(&self, game: &Game) -> Option<std::process::Command> {
-        Self::commands_to_process(&self.config.backup.cloud_init_commands, game)
+        self.commands_to_process(&self.config.backup.cloud_init_commands, game)
     }
     pub fn cloud_commit_command(&self, game: &Game) -> Option<std::process::Command> {
-        Self::commands_to_process(&self.config.backup.cloud_commit_commands, game)
+        self.commands_to_process(&self.config.backup.cloud_commit_commands, game)
     }
     pub fn cloud_push_command(&self, game: &Game) -> Option<std::process::Command> {
-        Self::commands_to_process(&self.config.backup.cloud_push_commands, game)
+        self.commands_to_process(&self.config.backup.cloud_push_commands, game)
     }
     pub fn run_command(&self, game: &Game) -> Option<std::process::Command> {
         let cmds = game.run_commands.as_ref().unwrap_or(&self.config.run.run_commands);
-        Self::commands_to_process(cmds, game)
+        self.commands_to_process(cmds, game)
     }
 }
 
