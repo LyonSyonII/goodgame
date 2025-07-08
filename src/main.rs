@@ -34,15 +34,15 @@ fn main() -> Result<()> {
     }
 }
 
-fn add(game: String, root: PathBuf, save_location: PathBuf, executable: Option<PathBuf>, run_commands: Option<Vec<String>>, mut games: Games) -> Result<()> {
+fn add(game: String, root: PathBuf, save_location: PathBuf, mut executable: Option<PathBuf>, run_commands: Option<Vec<String>>, mut games: Games) -> Result<()> {
     let root = root
         .canonicalize()
         .with_context(|| format!("Failed to get root {}", root.display()))?;
     let save_location = save_location
         .canonicalize()
         .with_context(|| format!("Failed to get save location {}", save_location.display()))?;
-    if let Some(exe) = &executable {
-        exe.try_exists().with_context(|| format!("Failed to get executable {}", exe.display()))?;
+    if let Some(exe) = &mut executable {
+        *exe = exe.canonicalize().with_context(|| format!("Failed to get executable {}", exe.display()))?;
     }
 
     if !root.is_dir() {
@@ -52,19 +52,6 @@ fn add(game: String, root: PathBuf, save_location: PathBuf, executable: Option<P
     if root == save_location {
         bail!("The root and save locations can't be the same");
     }
-
-/*     if games.get_by_name(&game).is_ok() {
-        bail!("A game with the name {game:#?} already exists");
-    }
-    if games.get_by_root(&root).is_some() {
-        bail!("A game with the root {} already exists", root.display());
-    }
-    if games.get_by_save(&save_location).is_some() {
-        bail!(
-            "A game with the save location {} already exists",
-            save_location.display()
-        );
-    } */
 
     let save_symlink = root.join("gg-save-loc");
     if !save_symlink.exists() {

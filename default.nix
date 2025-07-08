@@ -54,8 +54,7 @@ in
           description = "List of commands to push changes to cloud backup.\nAll the commands will be concatenated with '&&'.";
           default = [];
           example = [
-            "git add ."
-            "git commit -m 'backup'"
+            "git push"
           ];
         };
       };
