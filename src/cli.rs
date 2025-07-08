@@ -5,7 +5,7 @@ use clap::{
     builder::{Styles, styling::AnsiColor},
 };
 use clap_complete::{ArgValueCandidates, CompletionCandidate};
-use goodgame::Games;
+use goodgame::games::Games;
 
 const CLAP_STYLE: Styles = Styles::styled()
     .header(AnsiColor::Green.on_default().bold())
@@ -17,22 +17,36 @@ const CLAP_STYLE: Styles = Styles::styled()
 #[clap(styles = CLAP_STYLE)]
 pub enum Cli {
     /// Starts to manage the provided game.
-    #[clap(alias = "a", alias = "init")]
+    /// 
+    /// If the game is already being managed, the provided details will override the current ones.
+    #[clap(alias = "a", alias = "init", alias = "edit")]
     Add {
+        /// The path of the game executable.
+        #[arg(short, long="exe", value_hint = ValueHint::ExecutablePath)]
+        executable: Option<PathBuf>,
+        /// Comma separated list of the commands that will be used in 'gg run $GAME'
+        /// 
+        /// If not provided, the global one will be used, replacing $EXE with the above executable.
+        #[arg(short, long="run")]
+        run_commands: Option<Vec<String>>,
+        /// The name of the game to manage.
         #[arg(value_hint = ValueHint::AnyPath)]
         game: String,
+        /// The root path of the game.
         #[arg(value_hint = ValueHint::DirPath)]
         root: PathBuf,
+        /// The path where the game stores its save files.
         #[arg(value_hint = ValueHint::AnyPath)]
         save_location: PathBuf,
     },
-    /// Deletes the game from the managed list.
-    #[clap(alias = "del", alias = "remove", alias = "rm")]
-    Delete {
+    /// Removes the game from the managed list.
+    #[clap(alias = "rm", alias = "delete", alias = "del")]
+    Remove {
+        /// The name of the game to remove.
         #[arg(add = game_name_candidates())]
         game: String,
     },
-    /// Creates a backup of the game.  
+    /// Creates a backup of the current save.  
     ///
     /// If no game name is provided, one will try to be selected based on the current directory.  
     ///
@@ -40,18 +54,22 @@ pub enum Cli {
     /// If a backup description is provided, the backup will be called "GAME-IDX-DESCRIPTION"
     #[clap(alias = "b", alias = "bk")]
     Backup {
+        /// The name of the game to make the backup.
         #[arg(add = game_name_candidates())]
         game: Option<String>,
+        /// Description that will be appended to the backup name.
         #[arg(long, short, value_hint = ValueHint::Other)]
         desc: Option<String>,
     },
-    /// Restores the selected backup.
+    /// Restores the selected save backup.
     ///
     /// A backup of the current save will be created.
-    #[clap(alias = "r", alias = "rs")]
+    #[clap()]
     Restore {
+        /// Name of the game to restore the save backup.
         #[arg(add = game_name_candidates())]
         game: String,
+        /// Name of the backup to restore.
         #[arg(add = game_backup_candidates(), requires = "game")]
         backup: String,
     },
@@ -61,14 +79,22 @@ pub enum Cli {
     /// Opens the root directory of the game.
     #[clap(alias = "o")]
     Open {
+        /// Open the save directory instead of the root.
+        #[arg(long, short)]
+        save: bool,
+        /// Name of the game to open the directory.
         #[arg(add = game_name_candidates())]
         game: String,
     },
-    /// Opens the save directory of the game.
-    #[clap(alias = "os")]
-    OpenSave {
+    /// Runs the selected game.
+    #[clap(alias = "r")]
+    Run {
+        /// Skip creating a backup of the saves when the game exits.
+        #[clap(short, long = "skip-cloud")]
+        skip_cloud: bool,
+        /// Name of the game to run.
         #[arg(add = game_name_candidates())]
-        game: String,
+        game: Option<String>,
     },
 }
 
@@ -79,7 +105,7 @@ fn possible_game_names() -> impl IntoIterator<Item = &'static str> {
 }
 fn game_name_candidates() -> ArgValueCandidates {
     if std::env::args().count() <= 2 {
-        return ArgValueCandidates::new(std::vec::Vec::new)
+        return ArgValueCandidates::new(std::vec::Vec::new);
     }
     ArgValueCandidates::new(|| {
         possible_game_names()
@@ -91,7 +117,7 @@ fn game_name_candidates() -> ArgValueCandidates {
 
 fn game_backup_candidates() -> ArgValueCandidates {
     if std::env::args().count() <= 2 {
-        return ArgValueCandidates::new(std::vec::Vec::new)
+        return ArgValueCandidates::new(std::vec::Vec::new);
     }
     let Some(game) = std::env::args()
         .rfind(|a| !a.is_empty())

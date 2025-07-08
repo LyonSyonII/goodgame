@@ -2,8 +2,11 @@ mod cli;
 
 use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, Parser};
-use goodgame::{Game, Games};
-use std::{path::{Path, PathBuf}, process::Command};
+use goodgame::games::{Game, Games};
+use std::{
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 fn main() -> Result<()> {
     // echo "source (COMPLETE=fish your_program | psub)" >> ~/.config/fish/config.fish
@@ -19,23 +22,28 @@ fn main() -> Result<()> {
             game,
             root,
             save_location,
-        } => add(game, root, save_location, games),
-        cli::Cli::Delete { game } => remove(game, games),
+            executable,
+            run_commands
+        } => add(game, root, save_location, executable, run_commands, games),
+        cli::Cli::Remove { game } => remove(game, games),
         cli::Cli::List => list(games),
         cli::Cli::Backup { game, desc } => backup(game.as_deref(), desc.as_deref(), &games),
         cli::Cli::Restore { game, backup } => restore(game, backup, games),
-        cli::Cli::Open { game } => open(game, games),
-        cli::Cli::OpenSave { game } => open_save(game, games),
+        cli::Cli::Open { game, save } => open(game, save, games),
+        cli::Cli::Run { game, skip_cloud } => run(game, skip_cloud, games),
     }
 }
 
-fn add(game: String, root: PathBuf, save_location: PathBuf, mut games: Games) -> Result<()> {
+fn add(game: String, root: PathBuf, save_location: PathBuf, executable: Option<PathBuf>, run_commands: Option<Vec<String>>, mut games: Games) -> Result<()> {
     let root = root
         .canonicalize()
         .with_context(|| format!("Failed to get root {}", root.display()))?;
     let save_location = save_location
         .canonicalize()
         .with_context(|| format!("Failed to get save location {}", save_location.display()))?;
+    if let Some(exe) = &executable {
+        exe.try_exists().with_context(|| format!("Failed to get executable {}", exe.display()))?;
+    }
 
     if !root.is_dir() {
         bail!("The root must be a directory");
@@ -45,7 +53,7 @@ fn add(game: String, root: PathBuf, save_location: PathBuf, mut games: Games) ->
         bail!("The root and save locations can't be the same");
     }
 
-    if games.get_by_name(&game).is_ok() {
+/*     if games.get_by_name(&game).is_ok() {
         bail!("A game with the name {game:#?} already exists");
     }
     if games.get_by_root(&root).is_some() {
@@ -56,7 +64,7 @@ fn add(game: String, root: PathBuf, save_location: PathBuf, mut games: Games) ->
             "A game with the save location {} already exists",
             save_location.display()
         );
-    }
+    } */
 
     let save_symlink = root.join("gg-save-loc");
     if !save_symlink.exists() {
@@ -69,7 +77,7 @@ fn add(game: String, root: PathBuf, save_location: PathBuf, mut games: Games) ->
         })?;
     }
 
-    let game = Game::new(game, root, save_location);
+    let game = Game::new(game, root, save_location, executable, run_commands);
 
     let backups_location = game.backups_path();
     if !backups_location.exists() {
@@ -83,9 +91,10 @@ fn add(game: String, root: PathBuf, save_location: PathBuf, mut games: Games) ->
 
     run_command(games.cloud_init_command(&game), "cloud init", game.root())?;
 
-    games.push(game.clone());
+    let game_s = format!("{game:#?}");
+    games.push(game);
     games.store()?;
-    println!("Now managing {game:#?}");
+    println!("Now managing {game_s}");
 
     Ok(())
 }
@@ -106,17 +115,7 @@ fn list(games: Games) -> Result<()> {
 /// The backup is compressed and called "GAME-IDX" by default.  
 /// If a backup description is provided, the backup will be called "GAME-IDX-DESCRIPTION"
 fn backup(game: Option<&str>, desc: Option<&str>, games: &Games) -> Result<()> {
-    let game = if let Some(game) = game {
-        games.get_by_name(game)?
-    } else if let Some(game) = games.get_by_current_dir() {
-        game
-    } else {
-        bail!(
-            "Could not infer game by the current directory {}",
-            std::env::current_dir()?.canonicalize()?.display()
-        )
-    };
-
+    let game = games.try_get(game)?;
     let backups_path = game.backups_path();
     let name = game.name();
     let idx = backups_path.read_dir()?.count();
@@ -159,7 +158,11 @@ fn backup(game: Option<&str>, desc: Option<&str>, games: &Games) -> Result<()> {
 
     println!("Created backup {}", zstd_path.display());
 
-    run_command(games.cloud_commit_command(game), "cloud commit", game.root())?;
+    run_command(
+        games.cloud_commit_command(game),
+        "cloud commit",
+        game.root(),
+    )?;
     run_command(games.cloud_push_command(game), "cloud push", game.root())?;
 
     Ok(())
@@ -198,7 +201,11 @@ fn restore(game: String, target: String, games: Games) -> Result<()> {
             )
         })?;
 
-    run_command(games.cloud_commit_command(game), "cloud commit", game.root())?;
+    run_command(
+        games.cloud_commit_command(game),
+        "cloud commit",
+        game.root(),
+    )?;
     run_command(games.cloud_push_command(game), "cloud push", game.root())?;
 
     println!(
@@ -210,15 +217,28 @@ fn restore(game: String, target: String, games: Games) -> Result<()> {
     Ok(())
 }
 
-fn open(game: String, games: Games) -> Result<()> {
-    let dir = games.get_by_name(&game)?.root();
+fn open(game: String, save: bool, games: Games) -> Result<()> {
+    let game = games.get_by_name(&game)?;
+    let dir = if save {
+        game.save_location()
+    } else {
+        game.root()
+    };
     let _ = Command::new("xdg-open").arg(dir).spawn()?;
     Ok(())
 }
 
-fn open_save(game: String, games: Games) -> Result<()> {
-    let dir = games.get_by_name(&game)?.save_location();
-    let _ = Command::new("xdg-open").arg(dir).spawn()?;
+fn run(
+    game: Option<String>,
+    skip_cloud: bool,
+    games: Games,
+) -> std::result::Result<(), anyhow::Error> {
+    let game = games.try_get(game)?;
+    run_command(games.run_command(game), "run game", game.root())?;
+    if !skip_cloud {
+        backup(Some(game.name()), None, &games)?;
+    }
+
     Ok(())
 }
 
@@ -230,7 +250,8 @@ fn run_command(cmd: Option<Command>, desc: &str, cwd: &Path) -> Result<()> {
     println!("Running cloud commit...");
 
     let original_dir = std::env::current_dir()?;
-    std::env::set_current_dir(cwd).with_context(|| format!("Could not access directory {}", cwd.display()))?;
+    std::env::set_current_dir(cwd)
+        .with_context(|| format!("Could not access directory {}", cwd.display()))?;
 
     let out = cmd.status().with_context(|| {
         format!(

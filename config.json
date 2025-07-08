@@ -3,10 +3,10 @@
 		"cloud_init_commands": [
 			"git init",
 			"echo -e '*\\n!gg-saves\\n!.gitignore' > .gitignore",
-			"glab repo create $NAME --private --defaultBranch main --skipGitInit",
+			"glab repo create gg-$GAME --private --defaultBranch main --skipGitInit",
 			"git add .",
 			"git commit -m first || true",
-            "git remote add origin git@gitlab.com:LyonSyonII/$NAME",
+            "git remote add origin git@gitlab.com:LyonSyonII/gg-$GAME",
 			"git push --set-upstream origin main"
 		],
 		"cloud_commit_commands": [ 
