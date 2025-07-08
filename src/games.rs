@@ -84,6 +84,10 @@ impl Games {
         &self.inner
     }
 
+    pub fn config(&self) -> &Config {
+        &self.config
+    }
+
     pub fn names(&self) -> impl IntoIterator<Item = &str> {
         self.inner.iter().map(|g| g.name.as_str())
     }
@@ -154,7 +158,7 @@ impl Games {
         self.commands_to_process(&self.config.backup.cloud_push_commands, game)
     }
     pub fn run_command(&self, game: &Game) -> Option<std::process::Command> {
-        let cmds = game.run_commands.as_ref().unwrap_or(&self.config.run.run_commands);
+        let cmds = game.run_commands.as_ref().unwrap_or(&self.config.run.commands);
         self.commands_to_process(cmds, game)
     }
 }

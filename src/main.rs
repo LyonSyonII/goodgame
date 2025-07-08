@@ -31,6 +31,7 @@ fn main() -> Result<()> {
         cli::Cli::Restore { game, backup } => restore(game, backup, games),
         cli::Cli::Open { game, save } => open(game, save, games),
         cli::Cli::Run { game, skip_cloud } => run(game, skip_cloud, games),
+        cli::Cli::Config => print_config(games)
     }
 }
 
@@ -226,6 +227,11 @@ fn run(
         backup(Some(game.name()), None, &games)?;
     }
 
+    Ok(())
+}
+
+fn print_config(games: Games) -> std::result::Result<(), anyhow::Error> {
+    println!("{:#?}", games.config());
     Ok(())
 }
 

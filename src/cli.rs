@@ -96,6 +96,10 @@ pub enum Cli {
         #[arg(add = game_name_candidates())]
         game: Option<String>,
     },
+    /// Prints the current configuration.
+    /// 
+    /// Located on /etc/goodgame/config.json
+    Config
 }
 
 static GAMES: std::sync::LazyLock<Games> = std::sync::LazyLock::new(|| Games::load().unwrap());

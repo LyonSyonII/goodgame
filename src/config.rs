@@ -1,7 +1,6 @@
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
 pub struct Config {
     pub shell: String,
     pub run: Run,
@@ -9,16 +8,17 @@ pub struct Config {
 }
 
 #[derive(Debug, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
 pub struct Run {
-    pub run_commands: Vec<String>,
+    pub commands: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Default)]
 #[serde(default)]
-#[serde(rename_all = "camelCase")]
 pub struct Backup {
+    #[serde(rename(deserialize = "cloudInitCommands"))]
     pub cloud_init_commands: Vec<String>,
+    #[serde(rename(deserialize = "cloudCommitCommands"))]
     pub cloud_commit_commands: Vec<String>,
+    #[serde(rename(deserialize = "cloudPushCommands"))]
     pub cloud_push_commands: Vec<String>,
 }
