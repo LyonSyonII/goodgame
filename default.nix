@@ -15,8 +15,8 @@ in
       shell = lib.mkOption {
         type = lib.types.str;
         description = "Shell that will be used to execute the commands";
-        default = lib.literalExpression lib.getExe pkgs.bash;
-        example = lib.literalExpression lib.getExe pkgs.fish;
+        default = lib.literalExpression "lib.getExe pkgs.bash";
+        example = lib.literalExpression "lib.getExe pkgs.fish";
       };
       run = {
         commands = lib.mkOption {
