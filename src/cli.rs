@@ -29,8 +29,12 @@ pub enum Cli {
         /// If not provided, the global one will be used, replacing $EXE with the above executable.
         #[arg(short, long="run")]
         run_commands: Option<Vec<String>>,
+        /// Skips cloud saving features completely.
         #[arg(short, long="skip-cloud")]
         skip_cloud: bool,
+        /// Skips cloud saving initialization.
+        #[arg(long="skip-init")]
+        skip_cloud_init: bool,
         /// The name of the game to manage.
         #[arg(value_hint = ValueHint::AnyPath)]
         game: String,

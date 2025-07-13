@@ -1,4 +1,4 @@
-{ lib, rustPlatform, installShellFiles } : rustPlatform.buildRustPackage (finalAttrs: {
+{ rustPlatform, installShellFiles } : rustPlatform.buildRustPackage (finalAttrs: {
   pname = "goodgame";
   version = "0.1.0";
 
