@@ -22,7 +22,7 @@ pub enum Cli {
     #[clap(alias = "a", alias = "init", alias = "edit")]
     Add {
         /// The path of the game executable.
-        #[arg(short, long="exe", value_hint = ValueHint::ExecutablePath)]
+        #[arg(short, long="executable", value_hint = ValueHint::FilePath)]
         executable: Option<PathBuf>,
         /// Comma separated list of the commands that will be used in 'gg run $GAME'
         /// 
