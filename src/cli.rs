@@ -19,7 +19,7 @@ pub enum Cli {
     /// Starts to manage the provided game.
     /// 
     /// If the game is already being managed, the provided details will override the current ones.
-    #[clap(alias = "a", alias = "init", alias = "edit")]
+    #[clap(alias = "a", alias = "init")]
     Add {
         /// The path of the game executable.
         #[arg(short, long="exe", value_hint = ValueHint::ExecutablePath)]
@@ -40,6 +40,27 @@ pub enum Cli {
         /// The path where the game stores its save files.
         #[arg(value_hint = ValueHint::AnyPath)]
         save_location: PathBuf,
+    },
+    /// Edits the configuration of the specified game.
+    /// 
+    /// If no extra argument is provided, an editable JSON file will be opened.
+    #[clap(alias = "e")]
+    Edit {
+        /// New name.
+        #[arg(long, value_hint = ValueHint::AnyPath)]
+        name: Option<String>,
+        /// New root.
+        #[arg(long, value_hint = ValueHint::DirPath)]
+        root: Option<PathBuf>,
+        /// New save location.
+        #[arg(long, value_hint = ValueHint::AnyPath)]
+        save_location: Option<PathBuf>,
+        /// New executable.
+        #[arg(long, value_hint = ValueHint::FilePath)]
+        executable: Option<PathBuf>,
+        /// The name of the game to edit.
+        #[arg(add = game_name_candidates())]
+        game: String
     },
     /// Removes the game from the managed list.
     #[clap(alias = "rm", alias = "delete", alias = "del")]
