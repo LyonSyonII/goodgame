@@ -4,7 +4,9 @@ use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, Parser};
 use goodgame::games::{Game, Games};
 use std::{
-    io::Seek, path::{Path, PathBuf}, process::Command
+    io::Seek,
+    path::{Path, PathBuf},
+    process::Command,
 };
 
 fn main() -> Result<()> {
@@ -178,12 +180,8 @@ fn edit(
     run_command(Some(cmd), "editing game...", fpath.parent().unwrap())?;
 
     tmp.seek(std::io::SeekFrom::Start(0))?;
-    let new_game = serde_json::from_reader::<_, Game>(tmp).with_context(|| {
-        format!(
-            "Could not parse temporary file {}",
-            fpath.display()
-        )
-    })?;
+    let new_game = serde_json::from_reader::<_, Game>(tmp)
+        .with_context(|| format!("Could not parse temporary file {}", fpath.display()))?;
 
     games.delete(original.name());
     games.push(new_game);
