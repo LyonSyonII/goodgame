@@ -50,21 +50,24 @@ pub enum Cli {
     /// If no extra argument is provided, an editable JSON file will be opened.
     #[clap(alias = "e")]
     Edit {
-        /// New name.
+        /// New game name.
         #[arg(long, value_hint = ValueHint::AnyPath)]
         name: Option<String>,
-        /// New root.
+        /// New root path.
         #[arg(long, value_hint = ValueHint::DirPath)]
         root: Option<PathBuf>,
-        /// New save location.
+        /// New save location path.
         #[arg(long, value_hint = ValueHint::AnyPath)]
         save_location: Option<PathBuf>,
-        /// New executable.
+        /// New executable path.
         #[arg(long, value_hint = ValueHint::FilePath)]
         executable: Option<PathBuf>,
+        /// New run commands.
+        #[arg(long = "run")]
+        run_commands: Option<Vec<String>>,
         /// The name of the game to edit.
         #[arg(add = game_name_candidates())]
-        game: String,
+        game: Option<String>,
     },
     /// Removes the game from the managed list.
     #[clap(alias = "rm", alias = "delete", alias = "del")]

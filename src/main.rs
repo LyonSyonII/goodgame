@@ -4,8 +4,7 @@ use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, Parser};
 use goodgame::games::{Game, Games};
 use std::{
-    path::{Path, PathBuf},
-    process::Command,
+    io::Seek, path::{Path, PathBuf}, process::Command
 };
 
 fn main() -> Result<()> {
@@ -36,10 +35,34 @@ fn main() -> Result<()> {
             run_commands,
             games,
         ),
+        cli::Cli::Edit {
+            name,
+            root,
+            save_location,
+            executable,
+            run_commands,
+            game,
+        } => edit(
+            name,
+            root,
+            save_location,
+            executable,
+            run_commands,
+            game,
+            games,
+        ),
         cli::Cli::Remove { game } => remove(game, games),
         cli::Cli::List => list(games),
-        cli::Cli::Backup { game, desc, skip_cloud } => backup(game.as_deref(), desc.as_deref(), skip_cloud, &games),
-        cli::Cli::Restore { game, backup, skip_cloud } => restore(game, backup, skip_cloud, games),
+        cli::Cli::Backup {
+            game,
+            desc,
+            skip_cloud,
+        } => backup(game.as_deref(), desc.as_deref(), skip_cloud, &games),
+        cli::Cli::Restore {
+            game,
+            backup,
+            skip_cloud,
+        } => restore(game, backup, skip_cloud, games),
         cli::Cli::Open { game, save } => open(game, save, games),
         cli::Cli::Run { game, skip_cloud } => run(game, skip_cloud, games),
         cli::Cli::Config => print_config(games),
@@ -111,6 +134,64 @@ fn add(
     Ok(())
 }
 
+fn edit(
+    name: Option<String>,
+    root: Option<PathBuf>,
+    save_location: Option<PathBuf>,
+    executable: Option<PathBuf>,
+    run_commands: Option<Vec<String>>,
+    game: Option<impl AsRef<str>>,
+    mut games: Games,
+) -> std::result::Result<(), anyhow::Error> {
+    use std::io::Write;
+
+    let original = games.try_get(game)?.clone();
+    let merged = original
+        .clone()
+        .merged_with(name, root, save_location, executable, run_commands);
+    if original != merged {
+        games.push(merged);
+        games.store()?;
+        return Ok(());
+    }
+
+    let fname = format!(".gg-{}", original.name());
+    let fpath = PathBuf::from("/tmp").join(fname);
+    let mut tmp = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(&fpath)
+        .with_context(|| {
+            format!(
+                "Could not create temporary file for game config to {}",
+                fpath.display()
+            )
+        })?;
+    write!(tmp, "{original}")
+        .with_context(|| format!("Could not write game config to {}", fpath.display()))?;
+
+    let cmd = games
+        .commands_to_process(&[format!("$EDITOR {}", fpath.display())], None)
+        .unwrap();
+    run_command(Some(cmd), "editing game...", fpath.parent().unwrap())?;
+
+    tmp.seek(std::io::SeekFrom::Start(0))?;
+    let new_game = serde_json::from_reader::<_, Game>(tmp).with_context(|| {
+        format!(
+            "Could not parse temporary file {}",
+            fpath.display()
+        )
+    })?;
+
+    games.delete(original.name());
+    games.push(new_game);
+    games.store()?;
+
+    Ok(())
+}
+
 fn remove(game: String, mut games: Games) -> Result<()> {
     match games.delete(&game) {
         Some(game) => println!("Deleted {game:#?} successfully"),
@@ -124,7 +205,7 @@ fn list(games: Games) -> Result<()> {
     Ok(())
 }
 
-/// The backup is compressed and called "GAME-IDX" by default.  
+/// The backup is compressed and called "GAME-IDX" by default.
 /// If a backup description is provided, the backup will be called "GAME-IDX-DESCRIPTION"
 fn backup(game: Option<&str>, desc: Option<&str>, skip_cloud: bool, games: &Games) -> Result<()> {
     let game = games.try_get(game)?;

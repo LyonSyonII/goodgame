@@ -123,7 +123,7 @@ impl Games {
         let curr = std::env::current_dir().ok()?;
         self.inner
             .iter()
-            .find(|&g| g.root == curr || g.save_location == curr)
+            .find(|g| g.root == curr || g.save_location == curr)
     }
 
     pub fn try_get(&self, game: Option<impl AsRef<str>>) -> Result<&Game> {
@@ -139,27 +139,30 @@ impl Games {
         }
     }
 
-    fn commands_to_process(&self, cmds: &[String], game: &Game) -> Option<std::process::Command> {
+    pub fn commands_to_process(&self, cmds: &[String], game: Option<&Game>) -> Option<std::process::Command> {
         if cmds.is_empty() {
             return None;
         }
-        let cmds = cmds.join(" && ");
+        let mut cmds = cmds.join("&&");
         let mut p = std::process::Command::new(&self.config.shell);
-        p.args([String::from("-c"), game.replace_vars(cmds)]);
+        if let Some(game) = game {
+            cmds = game.replace_vars(cmds);
+        }
+        p.args([String::from("-c"), cmds]);
         Some(p)
     }
     pub fn cloud_init_command(&self, game: &Game) -> Option<std::process::Command> {
-        self.commands_to_process(&self.config.backup.cloud_init_commands, game)
+        self.commands_to_process(&self.config.backup.cloud_init_commands, Some(game))
     }
     pub fn cloud_commit_command(&self, game: &Game) -> Option<std::process::Command> {
-        self.commands_to_process(&self.config.backup.cloud_commit_commands, game)
+        self.commands_to_process(&self.config.backup.cloud_commit_commands, Some(game))
     }
     pub fn cloud_push_command(&self, game: &Game) -> Option<std::process::Command> {
-        self.commands_to_process(&self.config.backup.cloud_push_commands, game)
+        self.commands_to_process(&self.config.backup.cloud_push_commands, Some(game))
     }
     pub fn run_command(&self, game: &Game) -> Option<std::process::Command> {
         let cmds = game.run_commands.as_ref().unwrap_or(&self.config.run.commands);
-        self.commands_to_process(cmds, game)
+        self.commands_to_process(cmds, Some(game))
     }
 }
 
@@ -182,7 +185,7 @@ impl std::fmt::Display for Games {
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Game {
     name: String,
     root: PathBuf,
@@ -224,7 +227,7 @@ impl Game {
         self.root.join("gg-saves")
     }
     
-    fn merge(&mut self, game: Game) {
+    pub fn merge(&mut self, game: Game) {
         self.root = game.root;
         self.save_location = game.save_location;
         if game.executable.is_some() {
@@ -232,6 +235,16 @@ impl Game {
         }
         if game.run_commands.is_some() {
             self.run_commands = game.run_commands;
+        }
+    }
+    
+    pub fn merged_with(self, name: Option<String>, root: Option<PathBuf>, save_location: Option<PathBuf>, executable: Option<PathBuf>, run_commands: Option<Vec<String>>) -> Game {
+        Game {
+            name: name.unwrap_or(self.name),
+            root: root.unwrap_or(self.root),
+            save_location: save_location.unwrap_or(self.save_location),
+            executable: executable.or(self.executable),
+            run_commands: run_commands.or(self.run_commands),
         }
     }
     
@@ -263,5 +276,24 @@ impl PartialOrd for Game {
 impl Ord for Game {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.name.cmp(&other.name)
+    }
+}
+
+impl std::fmt::Display for Game {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Trick serde_json into writing to std::fmt::Formatter
+        struct FormatterWriter<'a, 'b>(&'a mut std::fmt::Formatter<'b>);
+        impl std::io::Write for FormatterWriter<'_, '_> {
+            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                // SAFETY: The original message is already utf8
+                let FormatterWriter(fmt) = self;
+                let _ = fmt.write_str(unsafe { std::str::from_utf8_unchecked(buf) });
+                Ok(buf.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        serde_json::to_writer_pretty(FormatterWriter(f), &self).map_err(|_| std::fmt::Error)
     }
 }
