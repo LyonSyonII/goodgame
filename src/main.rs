@@ -23,6 +23,7 @@ fn main() -> Result<()> {
             root,
             save_location,
             skip_cloud,
+            skip_cloud_init,
             executable,
             run_commands,
         } => add(
@@ -30,6 +31,7 @@ fn main() -> Result<()> {
             root,
             save_location,
             skip_cloud,
+            skip_cloud_init,
             executable,
             run_commands,
             games,
@@ -49,6 +51,7 @@ fn add(
     root: PathBuf,
     save_location: PathBuf,
     skip_cloud: bool,
+    skip_cloud_init: bool,
     mut executable: Option<PathBuf>,
     run_commands: Option<Vec<String>>,
     mut games: Games,
@@ -96,7 +99,7 @@ fn add(
         })?;
     }
 
-    if !skip_cloud && games.get_by_name(game.name()).is_err() {
+    if !skip_cloud && !skip_cloud_init && games.get_by_name(game.name()).is_err() {
         run_command(games.cloud_init_command(&game), "cloud init", game.root())?;
     }
 

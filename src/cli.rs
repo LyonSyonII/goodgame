@@ -17,20 +17,24 @@ const CLAP_STYLE: Styles = Styles::styled()
 #[clap(styles = CLAP_STYLE)]
 pub enum Cli {
     /// Starts to manage the provided game.
-    /// 
+    ///
     /// If the game is already being managed, the provided details will override the current ones.
     #[clap(alias = "a", alias = "init")]
     Add {
         /// The path of the game executable.
-        #[arg(short, long="exe", value_hint = ValueHint::ExecutablePath)]
+        #[arg(short, long="executable", value_hint = ValueHint::FilePath)]
         executable: Option<PathBuf>,
         /// Comma separated list of the commands that will be used in 'gg run $GAME'
-        /// 
+        ///
         /// If not provided, the global one will be used, replacing $EXE with the above executable.
-        #[arg(short, long="run")]
+        #[arg(short, long = "run")]
         run_commands: Option<Vec<String>>,
-        #[arg(short, long="skip-cloud")]
+        /// Skips cloud saving features completely.
+        #[arg(short, long = "skip-cloud")]
         skip_cloud: bool,
+        /// Skips cloud saving initialization.
+        #[arg(long = "skip-init")]
+        skip_cloud_init: bool,
         /// The name of the game to manage.
         #[arg(value_hint = ValueHint::AnyPath)]
         game: String,
@@ -42,7 +46,7 @@ pub enum Cli {
         save_location: PathBuf,
     },
     /// Edits the configuration of the specified game.
-    /// 
+    ///
     /// If no extra argument is provided, an editable JSON file will be opened.
     #[clap(alias = "e")]
     Edit {
@@ -60,7 +64,7 @@ pub enum Cli {
         executable: Option<PathBuf>,
         /// The name of the game to edit.
         #[arg(add = game_name_candidates())]
-        game: String
+        game: String,
     },
     /// Removes the game from the managed list.
     #[clap(alias = "rm", alias = "delete", alias = "del")]
@@ -69,11 +73,11 @@ pub enum Cli {
         #[arg(add = game_name_candidates())]
         game: String,
     },
-    /// Creates a backup of the current save.  
+    /// Creates a backup of the current save.
     ///
-    /// If no game name is provided, one will try to be selected based on the current directory.  
+    /// If no game name is provided, one will try to be selected based on the current directory.
     ///
-    /// The backup is compressed and called "GAME-IDX" by default.  
+    /// The backup is compressed and called "GAME-IDX" by default.
     /// If a backup description is provided, the backup will be called "GAME-IDX-DESCRIPTION"
     #[clap(alias = "b", alias = "bk")]
     Backup {
@@ -83,7 +87,7 @@ pub enum Cli {
         /// Description that will be appended to the backup name.
         #[arg(long, short, value_hint = ValueHint::Other)]
         desc: Option<String>,
-        #[arg(short, long="skip-cloud")]
+        #[arg(short, long = "skip-cloud")]
         skip_cloud: bool,
     },
     /// Restores the selected save backup.
@@ -91,7 +95,7 @@ pub enum Cli {
     /// A backup of the current save will be created.
     #[clap()]
     Restore {
-        #[arg(short, long="skip-cloud")]
+        #[arg(short, long = "skip-cloud")]
         skip_cloud: bool,
         /// Name of the game to restore the save backup.
         #[arg(add = game_name_candidates())]
@@ -124,9 +128,9 @@ pub enum Cli {
         game: Option<String>,
     },
     /// Prints the current configuration.
-    /// 
+    ///
     /// Located on /etc/goodgame/config.json
-    Config
+    Config,
 }
 
 static GAMES: std::sync::LazyLock<Games> = std::sync::LazyLock::new(|| Games::load().unwrap());
