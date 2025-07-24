@@ -4,7 +4,7 @@ use clap::{
     ValueHint,
     builder::{Styles, styling::AnsiColor},
 };
-use clap_complete::{ArgValueCandidates, CompletionCandidate};
+use clap_complete::{ArgValueCandidates, ArgValueCompleter, CompletionCandidate};
 use goodgame::games::Games;
 
 const CLAP_STYLE: Styles = Styles::styled()
@@ -27,7 +27,7 @@ pub enum Cli {
         /// Comma separated list of the commands that will be used in 'gg run @GAME'.
         ///
         /// If not provided, the global one will be used, replacing @EXE with the above executable.
-        /// 
+        ///
         /// Supported variables:
         /// - @RUN: Global run command, similar to Steam's %command%.
         #[arg(short, long = "run")]
@@ -69,14 +69,14 @@ pub enum Cli {
         #[arg(long = "run")]
         run_commands: Option<Vec<String>>,
         /// The name of the game to edit.
-        #[arg(add = game_name_candidates())]
+        #[arg(add = game_name_completer())]
         game: Option<String>,
     },
     /// Removes the game from the managed list.
     #[clap(alias = "rm", alias = "delete", alias = "del")]
     Remove {
         /// The name of the game to remove.
-        #[arg(add = game_name_candidates())]
+        #[arg(add = game_name_completer())]
         game: String,
     },
     /// Creates a backup of the current save.
@@ -88,7 +88,7 @@ pub enum Cli {
     #[clap(alias = "b", alias = "bk")]
     Backup {
         /// The name of the game to make the backup.
-        #[arg(add = game_name_candidates())]
+        #[arg(add = game_name_completer())]
         game: Option<String>,
         /// Description that will be appended to the backup name.
         #[arg(long, short, value_hint = ValueHint::Other)]
@@ -104,7 +104,7 @@ pub enum Cli {
         #[arg(short, long = "skip-cloud")]
         skip_cloud: bool,
         /// Name of the game to restore the save backup.
-        #[arg(add = game_name_candidates())]
+        #[arg(add = game_name_completer())]
         game: String,
         /// Name of the backup to restore.
         #[arg(add = game_backup_candidates(), requires = "game")]
@@ -120,7 +120,7 @@ pub enum Cli {
         #[arg(long, short)]
         save: bool,
         /// Name of the game to open the directory.
-        #[arg(add = game_name_candidates())]
+        #[arg(add = game_name_completer())]
         game: String,
     },
     /// Runs the selected game.
@@ -130,7 +130,7 @@ pub enum Cli {
         #[clap(short, long = "skip-cloud")]
         skip_cloud: bool,
         /// Name of the game to run.
-        #[arg(add = game_name_candidates())]
+        #[arg(add = game_name_completer())]
         game: Option<String>,
     },
     /// Prints the current configuration.
@@ -141,19 +141,28 @@ pub enum Cli {
 
 static GAMES: std::sync::LazyLock<Games> = std::sync::LazyLock::new(|| Games::load().unwrap());
 
-fn possible_game_names() -> impl IntoIterator<Item = &'static str> {
-    GAMES.names()
-}
-fn game_name_candidates() -> ArgValueCandidates {
-    if std::env::args().count() <= 2 {
-        return ArgValueCandidates::new(std::vec::Vec::new);
-    }
-    ArgValueCandidates::new(|| {
-        possible_game_names()
+fn game_name_completer() -> ArgValueCompleter {
+    fn inner(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
+        // fixes game names showing up with commands
+        if std::env::args().count() <= 2 {
+            return Vec::new();
+        }
+
+        GAMES
+            .names()
             .into_iter()
+            .filter(|c| {
+                current
+                    .as_encoded_bytes()
+                    .iter()
+                    .copied()
+                    .zip(c.bytes())
+                    .all(|(a, b)| a.to_ascii_lowercase() == b.to_ascii_lowercase())
+            })
             .map(CompletionCandidate::new)
-            .collect::<Vec<_>>()
-    })
+            .collect()
+    }
+    ArgValueCompleter::new(inner)
 }
 
 fn game_backup_candidates() -> ArgValueCandidates {

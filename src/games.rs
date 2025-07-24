@@ -139,7 +139,11 @@ impl Games {
         }
     }
 
-    pub fn commands_to_process(&self, cmds: &[String], game: Option<&Game>) -> Option<std::process::Command> {
+    pub fn commands_to_process(
+        &self,
+        cmds: &[String],
+        game: Option<&Game>,
+    ) -> Option<std::process::Command> {
         if cmds.is_empty() {
             return None;
         }
@@ -161,15 +165,19 @@ impl Games {
         self.commands_to_process(&self.config.backup.cloud_push_commands, Some(game))
     }
     pub fn run_command(&self, game: &Game) -> Option<std::process::Command> {
-        let cmds: std::borrow::Cow<[String]> = game.run_commands.clone().map(|mut cmds| {
-            let global_run = self.config.run.commands.join("&&");
-            for cmd in cmds.iter_mut() {
-                if let Some(i) = cmd.find("@RUN") {
-                    cmd.replace_range(i..i+"@RUN".len(), &global_run);
+        let cmds: std::borrow::Cow<[String]> = game
+            .run_commands
+            .clone()
+            .map(|mut cmds| {
+                let global_run = self.config.run.commands.join("&&");
+                for cmd in cmds.iter_mut() {
+                    if let Some(i) = cmd.find("@RUN") {
+                        cmd.replace_range(i..i + "@RUN".len(), &global_run);
+                    }
                 }
-            }
-            cmds.into()
-        }).unwrap_or(self.config.run.commands.as_slice().into());
+                cmds.into()
+            })
+            .unwrap_or(self.config.run.commands.as_slice().into());
         self.commands_to_process(&cmds, Some(game))
     }
 }
@@ -234,7 +242,7 @@ impl Game {
     pub fn backups_path(&self) -> PathBuf {
         self.root.join("gg-saves")
     }
-    
+
     pub fn merge(&mut self, game: Game) {
         self.root = game.root;
         self.save_location = game.save_location;
@@ -245,8 +253,15 @@ impl Game {
             self.run_commands = game.run_commands;
         }
     }
-    
-    pub fn merged_with(self, name: Option<String>, root: Option<PathBuf>, save_location: Option<PathBuf>, executable: Option<PathBuf>, run_commands: Option<Vec<String>>) -> Game {
+
+    pub fn merged_with(
+        self,
+        name: Option<String>,
+        root: Option<PathBuf>,
+        save_location: Option<PathBuf>,
+        executable: Option<PathBuf>,
+        run_commands: Option<Vec<String>>,
+    ) -> Game {
         Game {
             name: name.unwrap_or(self.name),
             root: root.unwrap_or(self.root),
@@ -255,13 +270,12 @@ impl Game {
             run_commands: run_commands.or(self.run_commands),
         }
     }
-    
+
     fn replace_vars(&self, mut template: String) -> String {
         if let Some(exe) = &self.executable {
             template = template.replace("@EXE", &format!("'{}'", exe.display()));
         }
-        template
-            .replace("@GAME", &self.name)
+        template.replace("@GAME", &self.name)
     }
 }
 

@@ -33,11 +33,12 @@
           nightly
           fenix.targets.${target}.latest.rust-std
 
-          (pkgs.callPackage ./package.nix {})
+          # (pkgs.callPackage ./package.nix {})
         ];
 
         buildInputs = with pkgs; [
           pkg-config
+          stdenv
           mold
         ];
 

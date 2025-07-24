@@ -4,7 +4,10 @@ use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, Parser};
 use goodgame::games::{Game, Games};
 use std::{
-    io::Seek, os::unix::ffi::OsStrExt, path::{Path, PathBuf}, process::Command
+    io::Seek,
+    os::unix::ffi::OsStrExt,
+    path::{Path, PathBuf},
+    process::Command,
 };
 
 fn main() -> Result<()> {
@@ -345,7 +348,14 @@ fn run_command(cmd: Option<Command>, desc: &str, cwd: &Path) -> Result<()> {
         println!("Command {desc} not configured, skipping...");
         return Ok(());
     };
-    println!("[gg] Running {desc}: {}", cmd.get_args().skip(1).next().unwrap_or(std::ffi::OsStr::from_bytes(b"<EMPTY COMMAND>")).display());
+    println!(
+        "[gg] Running {desc}: {}",
+        cmd.get_args()
+            .skip(1)
+            .next()
+            .unwrap_or(std::ffi::OsStr::from_bytes(b"<EMPTY COMMAND>"))
+            .display()
+    );
 
     let original_dir = std::env::current_dir()?;
     std::env::set_current_dir(cwd)
