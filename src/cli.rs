@@ -39,14 +39,14 @@ pub enum Cli {
         #[arg(long = "skip-init")]
         skip_cloud_init: bool,
         /// The name of the game to manage.
-        #[arg(value_hint = ValueHint::AnyPath)]
-        game: String,
+        #[arg(long, value_hint = ValueHint::AnyPath, requires("root"), requires("save_location"))]
+        game: Option<String>,
         /// The root path of the game.
-        #[arg(value_hint = ValueHint::DirPath)]
-        root: PathBuf,
+        #[arg(long, value_hint = ValueHint::DirPath)]
+        root: Option<PathBuf>,
         /// The path where the game stores its save files.
-        #[arg(value_hint = ValueHint::AnyPath)]
-        save_location: PathBuf,
+        #[arg(long = "save", value_hint = ValueHint::AnyPath)]
+        save_location: Option<PathBuf>,
     },
     /// Edits the configuration of the specified game.
     ///

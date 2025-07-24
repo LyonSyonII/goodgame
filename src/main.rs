@@ -73,15 +73,21 @@ fn main() -> Result<()> {
 }
 
 fn add(
-    game: String,
-    root: PathBuf,
-    save_location: PathBuf,
+    game: Option<String>,
+    root: Option<PathBuf>,
+    save_location: Option<PathBuf>,
     skip_cloud: bool,
     skip_cloud_init: bool,
     mut executable: Option<PathBuf>,
     run_commands: Option<Vec<String>>,
     mut games: Games,
 ) -> Result<()> {
+    let (Some(game), Some(root), Some(save_location)) = (game, root, save_location) else {
+        // TODO: Read current directory for a gg-config.json and take details from there
+        // TODO: Make paths relative if able, if not, add custom relative paths ($STEAM, $WINEPREFIX, etc)
+        todo!()
+    };
+    
     let root = root
         .canonicalize()
         .with_context(|| format!("Failed to get root {}", root.display()))?;
