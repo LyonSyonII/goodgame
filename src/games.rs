@@ -164,8 +164,8 @@ impl Games {
         let cmds: std::borrow::Cow<[String]> = game.run_commands.clone().map(|mut cmds| {
             let global_run = self.config.run.commands.join("&&");
             for cmd in cmds.iter_mut() {
-                if let Some(i) = cmd.find("$RUN") {
-                    cmd.replace_range(i..i+"$RUN".len(), &global_run);
+                if let Some(i) = cmd.find("@RUN") {
+                    cmd.replace_range(i..i+"@RUN".len(), &global_run);
                 }
             }
             cmds.into()
@@ -258,10 +258,10 @@ impl Game {
     
     fn replace_vars(&self, mut template: String) -> String {
         if let Some(exe) = &self.executable {
-            template = template.replace("$EXE", &format!("'{}'", exe.display()));
+            template = template.replace("@EXE", &format!("'{}'", exe.display()));
         }
         template
-            .replace("$GAME", &self.name)
+            .replace("@GAME", &self.name)
     }
 }
 

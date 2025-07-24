@@ -24,9 +24,12 @@ pub enum Cli {
         /// The path of the game executable.
         #[arg(short, long="executable", value_hint = ValueHint::FilePath)]
         executable: Option<PathBuf>,
-        /// Comma separated list of the commands that will be used in 'gg run $GAME'
+        /// Comma separated list of the commands that will be used in 'gg run @GAME'.
         ///
-        /// If not provided, the global one will be used, replacing $EXE with the above executable.
+        /// If not provided, the global one will be used, replacing @EXE with the above executable.
+        /// 
+        /// Supported variables:
+        /// - @RUN: Global run command, similar to Steam's %command%.
         #[arg(short, long = "run")]
         run_commands: Option<Vec<String>>,
         /// Skips cloud saving features completely.
