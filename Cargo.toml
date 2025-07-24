@@ -4,12 +4,12 @@ version = "0.1.1"
 edition = "2024"
 
 [dependencies]
-clap = { version = "4.5.41", features = ["derive", "env", "string", "unicode" ] }
+clap = { version = "4.5.41", features = ["color", "derive", "env", "string", "unicode"], default-features = false }
 clap_complete = { version = "4.5.55", features = ["unstable-dynamic"] }
 serde_json = "1.0.141"
 serde = { version = "1.0.219", features = ["derive"] }
-anyhow = { version = "1.0.98", features = ["backtrace"] }
-zstd = { version = "0.13.3" }
+anyhow = { version = "1.0.98" }
+zstd = { version = "0.13.3", default-features = false }
 tar = { version = "0.4.44", default-features = false }
 
 [[bin]]

@@ -1,10 +1,10 @@
-{ rustPlatform, installShellFiles } : rustPlatform.buildRustPackage (finalAttrs: {
+{ pkgs ? import <nixpkgs> {} } : pkgs.rustPlatform.buildRustPackage (finalAttrs: {
   pname = "goodgame";
-  version = "0.1.0";
+  version = "0.1.1";
 
   src = ./.;
 
-  nativeBuildInputs = [ installShellFiles ];
+  nativeBuildInputs = [ pkgs.installShellFiles ];
 
   cargoLock = {
     lockFile = ./Cargo.lock;
