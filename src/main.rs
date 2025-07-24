@@ -4,9 +4,7 @@ use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, Parser};
 use goodgame::games::{Game, Games};
 use std::{
-    io::Seek,
-    path::{Path, PathBuf},
-    process::Command,
+    io::Seek, os::unix::ffi::OsStrExt, path::{Path, PathBuf}, process::Command
 };
 
 fn main() -> Result<()> {
@@ -177,7 +175,7 @@ fn edit(
     let cmd = games
         .commands_to_process(&[format!("$EDITOR {}", fpath.display())], None)
         .unwrap();
-    run_command(Some(cmd), "editing game...", fpath.parent().unwrap())?;
+    run_command(Some(cmd), "editing game", fpath.parent().unwrap())?;
 
     tmp.seek(std::io::SeekFrom::Start(0))?;
     let new_game = serde_json::from_reader::<_, Game>(tmp)
@@ -347,7 +345,7 @@ fn run_command(cmd: Option<Command>, desc: &str, cwd: &Path) -> Result<()> {
         println!("Command {desc} not configured, skipping...");
         return Ok(());
     };
-    println!("Running {desc}...");
+    println!("[gg] Running {desc}: {}", cmd.get_args().skip(1).next().unwrap_or(std::ffi::OsStr::from_bytes(b"<EMPTY COMMAND>")).display());
 
     let original_dir = std::env::current_dir()?;
     std::env::set_current_dir(cwd)

@@ -161,8 +161,16 @@ impl Games {
         self.commands_to_process(&self.config.backup.cloud_push_commands, Some(game))
     }
     pub fn run_command(&self, game: &Game) -> Option<std::process::Command> {
-        let cmds = game.run_commands.as_ref().unwrap_or(&self.config.run.commands);
-        self.commands_to_process(cmds, Some(game))
+        let cmds: std::borrow::Cow<[String]> = game.run_commands.clone().map(|mut cmds| {
+            let global_run = self.config.run.commands.join("&&");
+            for cmd in cmds.iter_mut() {
+                if let Some(i) = cmd.find("$RUN") {
+                    cmd.replace_range(i..i+"$RUN".len(), &global_run);
+                }
+            }
+            cmds.into()
+        }).unwrap_or(self.config.run.commands.as_slice().into());
+        self.commands_to_process(&cmds, Some(game))
     }
 }
 
