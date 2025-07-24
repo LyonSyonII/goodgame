@@ -14,7 +14,7 @@ const CLAP_STYLE: Styles = Styles::styled()
     .placeholder(AnsiColor::Green.on_default());
 
 #[derive(clap::Parser)]
-#[clap(styles = CLAP_STYLE)]
+#[clap(styles = CLAP_STYLE, version)]
 pub enum Cli {
     /// Starts to manage the provided game.
     ///
