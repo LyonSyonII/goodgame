@@ -173,7 +173,7 @@ dependencies = [
  "clap",
  "clap_complete",
  "serde",
- "serde_json",
+ "serde_jsonc2",
  "tar",
  "zstd",
 ]
@@ -310,10 +310,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_json"
-version = "1.0.141"
+name = "serde_jsonc2"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30b9eff21ebe718216c6ec64e1d9ac57087aad11efc64e32002bce4a0d4c03d3"
+checksum = "9e0c4f368ca87a531bdade1fe058784333db407ab8ca9510c301ea98ee469452"
 dependencies = [
  "itoa",
  "memchr",
