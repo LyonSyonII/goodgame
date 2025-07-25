@@ -275,7 +275,7 @@ impl Game {
         if let Some(exe) = &self.executable {
             template = template.replace("@EXE", &format!("'{}'", exe.display()));
         }
-        template.replace("@GAME", &self.name)
+        template.replace("@GAME", &format!("'{}'", self.name))
     }
 }
 
