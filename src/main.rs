@@ -176,7 +176,7 @@ fn edit(
         .with_context(|| format!("Could not write game config to {}", fpath.display()))?;
 
     let cmd = games
-        .commands_to_process(&[format!("$EDITOR {}", fpath.display())], None)
+        .commands_to_process(&[format!("$EDITOR '{}'", fpath.display())], None)
         .unwrap();
     run_command(Some(cmd), "editing game", fpath.parent().unwrap())?;
 
