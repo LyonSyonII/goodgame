@@ -16,10 +16,10 @@ pub struct Games {
 impl Games {
     pub fn load() -> Result<Games> {
         let config = std::fs::File::open("/etc/goodgame/config.json")
-            .with_context(|| "Could not open config file /etc/goodgame/config.json".to_string())
+            .with_context(|| "Could not open config file /etc/goodgame/config.json")
             .and_then(|config| {
                 serde_json::from_reader::<_, Config>(config).with_context(|| {
-                    "Could not parse config file /etc/goodgame/config.json".to_string()
+                    "Could not parse config file /etc/goodgame/config.json"
                 })
             })
             .unwrap_or_default();
