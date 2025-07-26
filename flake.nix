@@ -37,15 +37,11 @@
         ];
 
         buildInputs = with pkgs; [
-          pkg-config
-          stdenv
           mold
         ];
 
         RUST_SRC_PATH = "${pkgs.fenix.complete.rust-src}/lib/rustlib/src/rust/library";
         RUSTC_WRAPPER = "${pkgs.sccache}/bin/sccache";
-        # CARGO_BUILD_TARGET = target;
-        # "CARGO_TARGET_${builtins.replaceStrings ["-"] ["_"] (lib.strings.toUpper target)}_LINKER" = "${pkgs.clang}/bin/clang";
         RUSTFLAGS = ''-Clink-arg=-fuse-ld=mold'';
         # RUSTFLAGS = ''-Clink-arg=-fuse-ld=${pkgs.lld}/bin/ld.lld''; # Uncomment if 'mold' does not link correctly
 
