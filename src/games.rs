@@ -18,9 +18,8 @@ impl Games {
         let config = std::fs::File::open("/etc/goodgame/config.json")
             .with_context(|| "Could not open config file /etc/goodgame/config.json")
             .and_then(|config| {
-                serde_json::from_reader::<_, Config>(config).with_context(|| {
-                    "Could not parse config file /etc/goodgame/config.json"
-                })
+                serde_json::from_reader::<_, Config>(config)
+                    .with_context(|| "Could not parse config file /etc/goodgame/config.json")
             })
             .unwrap_or_default();
 
@@ -275,7 +274,9 @@ impl Game {
         if let Some(exe) = &self.executable {
             template = template.replace("@EXE", &format!("'{}'", exe.display()));
         }
-        template.replace("@GAME", &format!("'{}'", self.name))
+        template
+            .replace("@GAME-SLUG", &slug::slugify(&self.name))
+            .replace("@GAME", &self.name)
     }
 }
 

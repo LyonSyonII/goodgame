@@ -4,13 +4,14 @@ version = "0.1.4"
 edition = "2024"
 
 [dependencies]
-clap = { version = "4.5.41", features = ["color", "derive", "env", "help", "string", "suggestions", "unicode", "usage"], default-features = false }
-clap_complete = { version = "4.5.55", features = ["unstable-dynamic"] }
-serde = { version = "1.0.219", features = ["derive"] }
-anyhow = { version = "1.0.98" }
+clap = { version = "4.5.51", features = ["color", "derive", "env", "help", "string", "suggestions", "unicode", "usage"], default-features = false }
+clap_complete = { version = "4.5.60", features = ["unstable-dynamic"] }
+serde = { version = "1.0.228", features = ["derive"] }
+anyhow = { version = "1.0.100" }
 zstd = { version = "0.13.3", default-features = false }
 tar = { version = "0.4.44", default-features = false }
 serde_json = { version = "0.1.2", package = "serde_jsonc2" }
+slug = "0.1.6"
 
 [[bin]]
 name = "gg"
