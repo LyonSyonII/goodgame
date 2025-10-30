@@ -30,8 +30,9 @@ pub enum Cli {
         ///
         /// Supported variables:
         /// - @RUN: Global run command, similar to Steam's %command%.
-        /// - @GAME: Name of the game.
-        /// - @GAME-SLUG: Name of the game sanitized for use in URLs or repository names ('Cool náme!' => 'cool-name')
+        /// - @NAME: Name of the game.
+        /// - @NAME-SLUG: Name of the game sanitized for use in URLs or repository names ('Cool náme!' => 'cool-name').
+        /// - @EXE: Executable of the game, will be enclosed in quotes.
         #[arg(short, long = "run")]
         run_commands: Option<Vec<String>>,
         /// Skips cloud saving features completely.

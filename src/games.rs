@@ -275,8 +275,8 @@ impl Game {
             template = template.replace("@EXE", &format!("'{}'", exe.display()));
         }
         template
-            .replace("@GAME-SLUG", &slug::slugify(&self.name))
-            .replace("@GAME", &self.name)
+            .replace("@NAME-SLUG", &slug::slugify(&self.name))
+            .replace("@NAME", &self.name)
     }
 }
 
