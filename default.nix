@@ -34,7 +34,7 @@ in
           example = [
             "git init"
             "echo -e '*\\n!gg-saves\\n!.gitignore' > .gitignore"
-            "glab repo create $NAME --private --defaultBranch main --skipGitInit"
+            "glab repo create @GAME-SLUG --private --defaultBranch main --skipGitInit"
             "git add ."
             "git commit -m first || true"
             "git push --set-upstream origin main"
