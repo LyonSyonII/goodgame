@@ -24,14 +24,14 @@ pub enum Cli {
         /// The path of the game executable.
         #[arg(short, long="executable", value_hint = ValueHint::FilePath)]
         executable: Option<PathBuf>,
-        /// Comma separated list of the commands that will be used in 'gg run @GAME'.
+        /// Comma separated list of the commands that will be used in 'gg run'.
         ///
         /// If not provided, the global one will be used, replacing @EXE with the above executable.
         ///
-        /// Supported variables:
-        /// - @RUN: Global run command, similar to Steam's %command%.
-        /// - @NAME: Name of the game.
-        /// - @NAME-SLUG: Name of the game sanitized for use in URLs or repository names ('Cool náme!' => 'cool-name').
+        /// Supported variables:  
+        /// - @RUN: Global run command, similar to Steam's %command%.  
+        /// - @NAME: Name of the game.  
+        /// - @NAME-SLUG: Name of the game sanitized for use in URLs or repository names ('Cool náme!' => 'cool-name').  
         /// - @EXE: Executable of the game, will be enclosed in quotes.
         #[arg(short, long = "run")]
         run_commands: Option<Vec<String>>,
