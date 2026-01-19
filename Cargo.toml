@@ -1,17 +1,18 @@
 [package]
 name = "goodgame"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 
 [dependencies]
-clap = { version = "4.5.51", features = ["color", "derive", "env", "help", "string", "suggestions", "unicode", "usage"], default-features = false }
-clap_complete = { version = "4.5.60", features = ["unstable-dynamic"] }
+clap = { version = "4.5.54", features = ["color", "derive", "env", "help", "string", "suggestions", "unicode", "usage"], default-features = false }
+clap_complete = { version = "4.5.65", features = ["unstable-dynamic"] }
 serde = { version = "1.0.228", features = ["derive"] }
 anyhow = { version = "1.0.100" }
 zstd = { version = "0.13.3", default-features = false }
 tar = { version = "0.4.44", default-features = false }
 serde_json = { version = "0.1.2", package = "serde_jsonc2" }
 slug = "0.1.6"
+inquire = { version = "0.9.2", default-features = false, features = ["fuzzy"] }
 
 [[bin]]
 name = "gg"

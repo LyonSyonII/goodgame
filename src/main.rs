@@ -75,7 +75,7 @@ fn main() -> Result<()> {
 fn add(
     game: String,
     root: PathBuf,
-    save_location: PathBuf,
+    save_location: Option<PathBuf>,
     skip_cloud: bool,
     skip_cloud_init: bool,
     mut executable: Option<PathBuf>,
@@ -85,9 +85,15 @@ fn add(
     let root = root
         .canonicalize()
         .with_context(|| format!("Failed to get root {}", root.display()))?;
+
+    let Some(save_location) = save_location.or_else(|| try_get_save_location(&root)) else {
+        bail!("Save location could not be found automatically, please provide it")
+    };
+
     let save_location = save_location
         .canonicalize()
         .with_context(|| format!("Failed to get save location {}", save_location.display()))?;
+    
     if let Some(exe) = &mut executable {
         *exe = exe
             .canonicalize()
@@ -378,4 +384,22 @@ fn run_command(cmd: Option<Command>, desc: &str, cwd: &Path) -> Result<()> {
     std::env::set_current_dir(original_dir)?;
 
     Ok(())
+}
+
+fn try_get_save_location(root: &Path) -> Option<PathBuf> {
+    // let entries = root.read_dir().context("Try get Save Location")?;
+    std::env::set_current_dir(root)?;
+
+    fn exists(path: &_) -> bool {
+        Path::new(path).exists()
+    }
+    fn try_marker(markers: impl IntoIterator<Item = &str>, path: &str) -> Option<PathBuf> {
+        markers
+            .into_iter()
+            .all(exists)
+            .then(|| Path::new(path).canonicalize().ok()?)
+    }
+
+    // RenPy
+    try_marker(["renpy"], "game/saves").or_else(|| try_marker(["nw.dll"], "www/save"))
 }

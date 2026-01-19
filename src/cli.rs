@@ -49,7 +49,7 @@ pub enum Cli {
         root: PathBuf,
         /// The path where the game stores its save files.
         #[arg(value_hint = ValueHint::AnyPath)]
-        save_location: PathBuf,
+        save_location: Option<PathBuf>,
     },
     /// Edits the configuration of the specified game.
     ///
