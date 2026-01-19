@@ -12,7 +12,7 @@ zstd = { version = "0.13.3", default-features = false }
 tar = { version = "0.4.44", default-features = false }
 serde_json = { version = "0.1.2", package = "serde_jsonc2" }
 slug = "0.1.6"
-inquire = { version = "0.9.2", default-features = false, features = ["fuzzy"] }
+# inquire = { version = "0.9.2", default-features = false, features = ["fuzzy"] }
 
 [[bin]]
 name = "gg"
