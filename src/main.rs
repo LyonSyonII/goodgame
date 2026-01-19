@@ -388,16 +388,16 @@ fn run_command(cmd: Option<Command>, desc: &str, cwd: &Path) -> Result<()> {
 
 fn try_get_save_location(root: &Path) -> Option<PathBuf> {
     // let entries = root.read_dir().context("Try get Save Location")?;
-    std::env::set_current_dir(root)?;
+    std::env::set_current_dir(root).ok()?;
 
-    fn exists(path: &_) -> bool {
+    fn exists(path: &str) -> bool {
         Path::new(path).exists()
     }
-    fn try_marker(markers: impl IntoIterator<Item = &str>, path: &str) -> Option<PathBuf> {
+    fn try_marker(markers: impl IntoIterator<Item = &'static str>, path: &str) -> Option<PathBuf> {
         markers
             .into_iter()
             .all(exists)
-            .then(|| Path::new(path).canonicalize().ok()?)
+            .then(|| Path::new(path).canonicalize().ok())?
     }
 
     // RenPy
