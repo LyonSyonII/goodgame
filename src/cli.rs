@@ -25,7 +25,7 @@ pub enum Cli {
         #[arg(short, long="executable", value_hint = ValueHint::FilePath)]
         executable: Option<PathBuf>,
         /// Arguments that will be passed to the main executable.
-        #[arg(long = "args", long = "executable-args")]
+        #[arg(long = "args", alias = "executable-args")]
         executable_args: Option<Vec<String>>,
         /// Comma separated list of the commands that will be used in 'gg run'.
         ///
