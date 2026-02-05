@@ -1,10 +1,10 @@
 [package]
 name = "goodgame"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2024"
 
 [dependencies]
-clap = { version = "4.5.54", features = ["color", "derive", "env", "help", "string", "suggestions", "unicode", "usage"], default-features = false }
+clap = { version = "4.5.57", features = ["color", "derive", "env", "help", "string", "suggestions", "unicode", "usage"], default-features = false }
 clap_complete = { version = "4.5.65", features = ["unstable-dynamic"] }
 serde = { version = "1.0.228", features = ["derive"] }
 anyhow = { version = "1.0.100" }

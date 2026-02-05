@@ -206,6 +206,7 @@ pub struct Game {
     root: PathBuf,
     save_location: PathBuf,
     executable: Option<PathBuf>,
+    executable_args: Option<Vec<String>>,
     run_commands: Option<Vec<String>>,
 }
 
@@ -215,6 +216,7 @@ impl Game {
         root: PathBuf,
         save_location: PathBuf,
         executable: Option<PathBuf>,
+        executable_args: Option<Vec<String>>,
         run_commands: Option<Vec<String>>,
     ) -> Self {
         Self {
@@ -222,6 +224,7 @@ impl Game {
             root,
             save_location,
             executable,
+            executable_args,
             run_commands,
         }
     }
@@ -248,6 +251,9 @@ impl Game {
         if game.executable.is_some() {
             self.executable = game.executable;
         }
+        if game.executable_args.is_some() {
+            self.executable_args = game.executable_args;
+        }
         if game.run_commands.is_some() {
             self.run_commands = game.run_commands;
         }
@@ -259,6 +265,7 @@ impl Game {
         root: Option<PathBuf>,
         save_location: Option<PathBuf>,
         executable: Option<PathBuf>,
+        executable_args: Option<Vec<String>>,
         run_commands: Option<Vec<String>>,
     ) -> Game {
         Game {
@@ -266,13 +273,16 @@ impl Game {
             root: root.unwrap_or(self.root),
             save_location: save_location.unwrap_or(self.save_location),
             executable: executable.or(self.executable),
+            executable_args: executable_args.or(self.executable_args),
             run_commands: run_commands.or(self.run_commands),
         }
     }
 
     fn replace_vars(&self, mut template: String) -> String {
         if let Some(exe) = &self.executable {
-            template = template.replace("@EXE", &format!("'{}'", exe.display()));
+            let exe = exe.display();
+            let executable_args = self.executable_args.as_deref().unwrap_or_default().join(" ");
+            template = template.replace("@EXE", &format!("'{exe}' {executable_args}"));
         }
         template
             .replace("@NAME-SLUG", &slug::slugify(&self.name))

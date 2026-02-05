@@ -27,6 +27,7 @@ fn main() -> Result<()> {
             skip_cloud,
             skip_cloud_init,
             executable,
+            executable_args,
             run_commands,
         } => add(
             game,
@@ -35,6 +36,7 @@ fn main() -> Result<()> {
             skip_cloud,
             skip_cloud_init,
             executable,
+            executable_args,
             run_commands,
             games,
         ),
@@ -43,6 +45,7 @@ fn main() -> Result<()> {
             root,
             save_location,
             executable,
+            executable_args,
             run_commands,
             game,
         } => edit(
@@ -50,6 +53,7 @@ fn main() -> Result<()> {
             root,
             save_location,
             executable,
+            executable_args,
             run_commands,
             game,
             games,
@@ -79,6 +83,7 @@ fn add(
     skip_cloud: bool,
     skip_cloud_init: bool,
     mut executable: Option<PathBuf>,
+    executable_args: Option<Vec<String>>,
     run_commands: Option<Vec<String>>,
     mut games: Games,
 ) -> Result<()> {
@@ -119,7 +124,7 @@ fn add(
         })?;
     }
 
-    let game = Game::new(game, root, save_location, executable, run_commands);
+    let game = Game::new(game, root, save_location, executable, executable_args, run_commands);
 
     let backups_location = game.backups_path();
     if !backups_location.exists() {
@@ -148,6 +153,7 @@ fn edit(
     root: Option<PathBuf>,
     save_location: Option<PathBuf>,
     executable: Option<PathBuf>,
+    executable_args: Option<Vec<String>>,
     run_commands: Option<Vec<String>>,
     game: Option<impl AsRef<str>>,
     mut games: Games,
@@ -157,7 +163,7 @@ fn edit(
     let original = games.try_get(game)?.clone();
     let merged = original
         .clone()
-        .merged_with(name, root, save_location, executable, run_commands);
+        .merged_with(name, root, save_location, executable, executable_args, run_commands);
     if original != merged {
         games.push(merged);
         games.store()?;

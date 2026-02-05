@@ -24,6 +24,9 @@ pub enum Cli {
         /// The path of the game executable.
         #[arg(short, long="executable", value_hint = ValueHint::FilePath)]
         executable: Option<PathBuf>,
+        /// Arguments that will be passed to the main executable.
+        #[arg(long = "args", long = "executable-args")]
+        executable_args: Option<Vec<String>>,
         /// Comma separated list of the commands that will be used in 'gg run'.
         ///
         /// If not provided, the global one will be used, replacing @EXE with the above executable.
@@ -68,6 +71,9 @@ pub enum Cli {
         /// New executable path.
         #[arg(long, value_hint = ValueHint::FilePath)]
         executable: Option<PathBuf>,
+        /// New executable arguments.
+        #[arg(long = "args", long = "executable-args")]
+        executable_args: Option<Vec<String>>,
         /// New run commands.
         #[arg(long = "run")]
         run_commands: Option<Vec<String>>,
