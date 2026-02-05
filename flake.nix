@@ -42,7 +42,7 @@
             nightly
             fenix.targets.${target}.latest.rust-std
 
-            # (pkgs.callPackage ./package.nix {})
+            (pkgs.callPackage ./package.nix {})
           ];
 
           buildInputs = with pkgs; [
@@ -50,7 +50,7 @@
           ];
 
           RUST_SRC_PATH = "${pkgs.fenix.complete.rust-src}/lib/rustlib/src/rust/library";
-          RUSTC_WRAPPER = "${pkgs.sccache}/bin/sccache";
+          # RUSTC_WRAPPER = "${pkgs.sccache}/bin/sccache";
           RUSTFLAGS = ''-Clink-arg=-fuse-ld=mold'';
           # RUSTFLAGS = ''-Clink-arg=-fuse-ld=${pkgs.lld}/bin/ld.lld''; # Uncomment if 'mold' does not link correctly
 

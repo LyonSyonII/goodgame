@@ -65,6 +65,6 @@ in
     environment.systemPackages = [
       cfg.package
     ];
-    environment.etc."goodgame/config.json".text = builtins.toJSON cfg.settings;
+    environment.etc."goodgame/config.toml".source = (pkgs.formats.toml {}).generate "config.toml" cfg.settings;
   };
 }

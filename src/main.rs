@@ -87,7 +87,7 @@ fn add(
         // TODO: Make paths relative if able, if not, add custom relative paths ($STEAM, $WINEPREFIX, etc)
         todo!()
     };
-    
+
     let root = root
         .canonicalize()
         .with_context(|| format!("Failed to get root {}", root.display()))?;
