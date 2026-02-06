@@ -76,6 +76,7 @@ fn main() -> Result<()> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn add(
     game: String,
     root: PathBuf,
@@ -94,16 +95,17 @@ fn add(
     let Some(save_location) = save_location.or_else(|| try_get_save_location(&root)) else {
         bail!("Save location could not be found automatically, please provide it")
     };
-
     let save_location = save_location
         .canonicalize()
         .with_context(|| format!("Failed to get save location {}", save_location.display()))?;
-    
+
     if let Some(exe) = &mut executable {
         *exe = exe
             .canonicalize()
             .with_context(|| format!("Failed to get executable {}", exe.display()))?;
-    }
+    } else {
+        executable = try_get_executable_location(&root);
+    };
 
     if !root.is_dir() {
         bail!("The root must be a directory");
@@ -124,7 +126,14 @@ fn add(
         })?;
     }
 
-    let game = Game::new(game, root, save_location, executable, executable_args, run_commands);
+    let game = Game::new(
+        game,
+        root,
+        save_location,
+        executable,
+        executable_args,
+        run_commands,
+    );
 
     let backups_location = game.backups_path();
     if !backups_location.exists() {
@@ -148,6 +157,7 @@ fn add(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn edit(
     name: Option<String>,
     root: Option<PathBuf>,
@@ -161,9 +171,14 @@ fn edit(
     use std::io::Write;
 
     let original = games.try_get(game)?.clone();
-    let merged = original
-        .clone()
-        .merged_with(name, root, save_location, executable, executable_args, run_commands);
+    let merged = original.clone().merged_with(
+        name,
+        root,
+        save_location,
+        executable,
+        executable_args,
+        run_commands,
+    );
     if original != merged {
         games.push(merged);
         games.store()?;
@@ -363,8 +378,7 @@ fn run_command(cmd: Option<Command>, desc: &str, cwd: &Path) -> Result<()> {
     println!(
         "[gg] Running {desc}: {}",
         cmd.get_args()
-            .skip(1)
-            .next()
+            .nth(1)
             .unwrap_or(std::ffi::OsStr::from_bytes(b"<EMPTY COMMAND>"))
             .display()
     );
@@ -392,20 +406,76 @@ fn run_command(cmd: Option<Command>, desc: &str, cwd: &Path) -> Result<()> {
     Ok(())
 }
 
+struct PathBufDisplay(PathBuf);
+impl std::fmt::Display for PathBufDisplay {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.display())
+    }
+}
+
 fn try_get_save_location(root: &Path) -> Option<PathBuf> {
-    // let entries = root.read_dir().context("Try get Save Location")?;
     std::env::set_current_dir(root).ok()?;
 
     fn exists(path: &str) -> bool {
         Path::new(path).exists()
     }
-    fn try_marker(markers: impl IntoIterator<Item = &'static str>, path: &str) -> Option<PathBuf> {
-        markers
+    fn try_marker(
+        name: &str,
+        markers: impl IntoIterator<Item = &'static str>,
+        path: &str,
+    ) -> Option<PathBuf> {
+        let path = markers
             .into_iter()
             .all(exists)
-            .then(|| Path::new(path).canonicalize().ok())?
+            .then(|| Path::new(path).canonicalize().ok())?;
+        eprintln!("Game type detected: {name}");
+        path
     }
+    macro_rules! one_of {
+        ( $($exprs:expr),+ ) => {
+            $(
+                if let e @ Some(_) = $exprs {
+                    return e
+                }
+            )+
+            None
+        }
+    }
+    let walk = || inquire::Select::new(
+        "Select the game's save location",
+        walkdir::WalkDir::new(".")
+            .into_iter()
+            .flatten()
+            .map(|e| PathBufDisplay(e.into_path())).collect(),
+    )
+    .prompt()
+    .ok();
 
-    // RenPy
-    try_marker(["renpy"], "game/saves").or_else(|| try_marker(["nw.dll"], "www/save"))
+    one_of! {
+        try_marker("RenPy", ["renpy"], "game/saves"),
+        try_marker("RPG Maker MV", ["nw.dll"], "www/save"),
+        walk().map(|p| p.0.to_path_buf())
+    }
+}
+
+fn try_get_executable_location(root: &Path) -> Option<PathBuf> {
+    let options = std::fs::read_dir(root).ok()?.flatten().filter_map(|rd| {
+        if !rd.metadata().ok()?.is_file() {
+            return None;
+        }
+        let path = rd.path();
+
+        let Some(extension) = path.extension() else {
+            // In Linux most executables do not have an extension
+            return Some(PathBufDisplay(path));
+        };
+        if matches!(extension.as_bytes(), b".exe" | b".sh") {
+            return Some(PathBufDisplay(path));
+        }
+        None
+    });
+    inquire::Select::new("Select the game's main executable", options.collect())
+        .prompt()
+        .ok()
+        .map(|p| p.0)
 }
