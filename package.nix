@@ -1,6 +1,6 @@
 { pkgs ? import <nixpkgs> {} } : pkgs.rustPlatform.buildRustPackage (finalAttrs: {
   pname = "goodgame";
-  version = "0.3.1";
+  version = "0.4.0";
 
   src = ./.;
 
