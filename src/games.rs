@@ -101,7 +101,8 @@ impl Games {
 
     pub fn get_by_name(&self, name: impl AsRef<str>) -> Result<&Game> {
         let name = name.as_ref();
-        if let Ok(i) = self.inner.binary_search_by(|g| g.name.as_str().cmp(name)) {
+        let name = slug::slugify(name);
+        if let Ok(i) = self.inner.binary_search_by(|g| slug::slugify(&g.name).cmp(&name)) {
             Ok(&self.inner[i])
         } else {
             bail!("The game {name:?} does not exist")
@@ -243,6 +244,18 @@ impl Game {
 
     pub fn backups_path(&self) -> PathBuf {
         self.root.join("gg-saves")
+    }
+    
+    pub fn executable(&self) -> Option<&PathBuf> {
+        self.executable.as_ref()
+    }
+
+    pub fn executable_args(&self) -> Option<&[String]> {
+        self.executable_args.as_deref()
+    }
+
+    pub fn run_commands(&self) -> Option<&[String]> {
+        self.run_commands.as_deref()
     }
 
     pub fn merge(&mut self, game: Game) {

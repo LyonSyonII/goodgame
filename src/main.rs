@@ -92,7 +92,12 @@ fn add(
         .canonicalize()
         .with_context(|| format!("Failed to get root {}", root.display()))?;
 
-    let Some(save_location) = save_location.or_else(|| try_get_save_location(&root)) else {
+    let original_game = games.get_by_name(&game).ok();
+
+    let Some(save_location) = save_location
+        .or_else(|| original_game.map(|g| g.save_location().to_path_buf()))
+        .or_else(|| try_get_save_location(&root))
+    else {
         bail!("Save location could not be found automatically, please provide it")
     };
     let save_location = save_location
@@ -104,7 +109,9 @@ fn add(
             .canonicalize()
             .with_context(|| format!("Failed to get executable {}", exe.display()))?;
     } else {
-        executable = try_get_executable_location(&root);
+        executable = original_game
+            .and_then(|g| g.executable().cloned())
+            .or_else(|| try_get_executable_location(&root));
     };
 
     if !root.is_dir() {
@@ -441,15 +448,18 @@ fn try_get_save_location(root: &Path) -> Option<PathBuf> {
             None
         }
     }
-    let walk = || inquire::Select::new(
-        "Select the game's save location",
-        walkdir::WalkDir::new(".")
-            .into_iter()
-            .flatten()
-            .map(|e| PathBufDisplay(e.into_path())).collect(),
-    )
-    .prompt()
-    .ok();
+    let walk = || {
+        inquire::Select::new(
+            "Select the game's save location",
+            walkdir::WalkDir::new(".")
+                .into_iter()
+                .flatten()
+                .map(|e| PathBufDisplay(e.into_path()))
+                .collect(),
+        )
+        .prompt()
+        .ok()
+    };
 
     one_of! {
         try_marker("RenPy", ["renpy"], "game/saves"),
@@ -469,7 +479,7 @@ fn try_get_executable_location(root: &Path) -> Option<PathBuf> {
             // In Linux most executables do not have an extension
             return Some(PathBufDisplay(path));
         };
-        if matches!(extension.as_bytes(), b".exe" | b".sh") {
+        if matches!(extension.as_bytes(), b"exe" | b"sh") {
             return Some(PathBufDisplay(path));
         }
         None
