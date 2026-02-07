@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use clap::{
     ValueHint,
@@ -12,6 +12,10 @@ const CLAP_STYLE: Styles = Styles::styled()
     .usage(AnsiColor::Green.on_default().bold())
     .literal(AnsiColor::Cyan.on_default().bold())
     .placeholder(AnsiColor::Green.on_default());
+
+fn parse_env_vars(s: &str) -> Result<(String, String), std::convert::Infallible> {
+    Ok(s.split_once('=').unwrap_or((s, ""))).map(|(k, v)| (k.to_owned(), v.to_owned()))
+}
 
 #[derive(clap::Parser)]
 #[clap(styles = CLAP_STYLE, version)]
@@ -27,14 +31,17 @@ pub enum Cli {
         /// Arguments that will be passed to the main executable.
         #[arg(long = "args", alias = "executable-args")]
         executable_args: Option<Vec<String>>,
+        /// Environment variables that will be set when the game runs.
+        #[arg(short, long = "env", alias = "environment", value_name = "KEY=[VALUE]", value_delimiter = ':', value_parser = parse_env_vars)]
+        environment_vars: Option<Vec<(String, String)>>,
         /// Comma separated list of the commands that will be used in 'gg run'.
         ///
         /// If not provided, the global one will be used, replacing @EXE with the above executable.
         ///
-        /// Supported variables:  
-        /// - @RUN: Global run command, similar to Steam's %command%.  
-        /// - @NAME: Name of the game.  
-        /// - @NAME-SLUG: Name of the game sanitized for use in URLs or repository names ('Cool náme!' => 'cool-name').  
+        /// Supported variables:
+        /// - @RUN: Global run command, similar to Steam's %command%.
+        /// - @NAME: Name of the game.
+        /// - @NAME-SLUG: Name of the game sanitized for use in URLs or repository names ('Cool náme!' => 'cool-name').
         /// - @EXE: Executable of the game, will be enclosed in quotes.
         #[arg(short, long = "run")]
         run_commands: Option<Vec<String>>,
@@ -74,6 +81,9 @@ pub enum Cli {
         /// New executable arguments.
         #[arg(long = "args", long = "executable-args")]
         executable_args: Option<Vec<String>>,
+        /// New environment variables.
+        #[arg(short, long = "env", alias = "environment", value_name = "KEY=[VALUE]", value_delimiter = ':', value_parser = parse_env_vars)]
+        environment_vars: Option<Vec<(String, String)>>,
         /// New run commands.
         #[arg(long = "run")]
         run_commands: Option<Vec<String>>,
@@ -166,7 +176,7 @@ fn game_name_completer() -> ArgValueCompleter {
                     .iter()
                     .copied()
                     .zip(c.bytes())
-                    .all(|(a, b)| a.to_ascii_lowercase() == b.to_ascii_lowercase())
+                    .all(|(a, b)| a.eq_ignore_ascii_case(&b))
             })
             .map(CompletionCandidate::new)
             .collect()

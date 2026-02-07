@@ -1,6 +1,7 @@
 use crate::config::Config;
 use anyhow::{Context, Result, anyhow, bail};
 use std::{
+    collections::HashMap,
     io::Seek,
     path::{Path, PathBuf},
 };
@@ -102,7 +103,10 @@ impl Games {
     pub fn get_by_name(&self, name: impl AsRef<str>) -> Result<&Game> {
         let name = name.as_ref();
         let name = slug::slugify(name);
-        if let Ok(i) = self.inner.binary_search_by(|g| slug::slugify(&g.name).cmp(&name)) {
+        if let Ok(i) = self
+            .inner
+            .binary_search_by(|g| slug::slugify(&g.name).cmp(&name))
+        {
             Ok(&self.inner[i])
         } else {
             bail!("The game {name:?} does not exist")
@@ -151,6 +155,9 @@ impl Games {
         let mut p = std::process::Command::new(&self.config.shell);
         if let Some(game) = game {
             cmds = game.replace_vars(cmds);
+            if let Some(vars) = &game.environment_vars {
+                p.envs(vars);
+            }
         }
         p.args([String::from("-c"), cmds]);
         Some(p)
@@ -208,6 +215,7 @@ pub struct Game {
     save_location: PathBuf,
     executable: Option<PathBuf>,
     executable_args: Option<Vec<String>>,
+    environment_vars: Option<HashMap<String, String>>,
     run_commands: Option<Vec<String>>,
 }
 
@@ -218,6 +226,7 @@ impl Game {
         save_location: PathBuf,
         executable: Option<PathBuf>,
         executable_args: Option<Vec<String>>,
+        environment_vars: Option<Vec<(String, String)>>,
         run_commands: Option<Vec<String>>,
     ) -> Self {
         Self {
@@ -226,6 +235,7 @@ impl Game {
             save_location,
             executable,
             executable_args,
+            environment_vars: environment_vars.map(HashMap::from_iter),
             run_commands,
         }
     }
@@ -245,7 +255,7 @@ impl Game {
     pub fn backups_path(&self) -> PathBuf {
         self.root.join("gg-saves")
     }
-    
+
     pub fn executable(&self) -> Option<&PathBuf> {
         self.executable.as_ref()
     }
@@ -267,11 +277,15 @@ impl Game {
         if game.executable_args.is_some() {
             self.executable_args = game.executable_args;
         }
+        if game.environment_vars.is_some() {
+            self.environment_vars = game.environment_vars;
+        }
         if game.run_commands.is_some() {
             self.run_commands = game.run_commands;
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn merged_with(
         self,
         name: Option<String>,
@@ -279,6 +293,7 @@ impl Game {
         save_location: Option<PathBuf>,
         executable: Option<PathBuf>,
         executable_args: Option<Vec<String>>,
+        environment_vars: Option<Vec<(String, String)>>,
         run_commands: Option<Vec<String>>,
     ) -> Game {
         Game {
@@ -287,6 +302,7 @@ impl Game {
             save_location: save_location.unwrap_or(self.save_location),
             executable: executable.or(self.executable),
             executable_args: executable_args.or(self.executable_args),
+            environment_vars: environment_vars.map(HashMap::from_iter).or(self.environment_vars),
             run_commands: run_commands.or(self.run_commands),
         }
     }
@@ -294,7 +310,11 @@ impl Game {
     fn replace_vars(&self, mut template: String) -> String {
         if let Some(exe) = &self.executable {
             let exe = exe.display();
-            let executable_args = self.executable_args.as_deref().unwrap_or_default().join(" ");
+            let executable_args = self
+                .executable_args
+                .as_deref()
+                .unwrap_or_default()
+                .join(" ");
             template = template.replace("@EXE", &format!("'{exe}' {executable_args}"));
         }
         template
