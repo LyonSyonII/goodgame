@@ -32,7 +32,9 @@ pub enum Cli {
         #[arg(long = "args", alias = "executable-args")]
         executable_args: Option<Vec<String>>,
         /// Environment variables that will be set when the game runs.
-        #[arg(short, long = "env", alias = "environment", value_name = "KEY=[VALUE]", value_delimiter = ':', value_parser = parse_env_vars)]
+        /// 
+        /// Should be given as "-e KEY=[VALUE]" or "-e KEY1=VALUE1:KEY2=VALUE2:..."
+        #[arg(short, long = "env", alias = "environment", value_name = "KEY=[VALUE][:...]", value_delimiter = ':', value_parser = parse_env_vars)]
         environment_vars: Option<Vec<(String, String)>>,
         /// Comma separated list of the commands that will be used in 'gg run'.
         ///

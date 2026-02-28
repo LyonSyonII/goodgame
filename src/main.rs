@@ -194,8 +194,10 @@ fn edit(
         environment_vars,
         run_commands,
     );
+
     if original != merged {
-        games.push(merged);
+        let game = games.push(merged);
+        println!("{:#?}", game);
         games.store()?;
         return Ok(());
     }
@@ -226,7 +228,7 @@ fn edit(
     let new_game = serde_json::from_reader::<_, Game>(tmp)
         .with_context(|| format!("Could not parse temporary file {}", fpath.display()))?;
 
-    games.delete(original.name());
+    let _ = games.delete(original.name());
     games.push(new_game);
     games.store()?;
 
@@ -235,8 +237,8 @@ fn edit(
 
 fn remove(game: String, mut games: Games) -> Result<()> {
     match games.delete(&game) {
-        Some(game) => println!("Deleted {game:#?} successfully"),
-        None => bail!("The game {game:#?} is not being managed"),
+        Ok(game) => println!("Deleted {game:#?} successfully"),
+        Err(_) => bail!("The game {game:#?} is not being managed"),
     };
     games.store()
 }

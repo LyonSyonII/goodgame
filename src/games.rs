@@ -53,31 +53,36 @@ impl Games {
         })
     }
 
+    /// Saves the in-memory game database into disk.
     pub fn store(&mut self) -> Result<()> {
         self.games_file.set_len(0)?;
         if self.inner.is_empty() {
             return Ok(());
         }
         self.games_file.rewind()?;
+        self.inner.sort_unstable(); // TODO: Unnecessary in theory, but good for migration
         serde_json::to_writer(&mut self.games_file, &self.inner)
             .with_context(|| format!("Could not save to {}", self.games_path().display()))
     }
 
     /// Pushes or updates the provided game.
-    pub fn push(&mut self, game: Game) {
-        match self.inner.binary_search(&game) {
-            Ok(i) => self.inner[i].merge(game),
-            Err(i) => self.inner.insert(i, game),
-        }
+    pub fn push(&mut self, game: Game) -> &Game {
+        let i = match self.inner.binary_search(&game) {
+            Ok(i) => {
+                self.inner[i].merge(game);
+                i
+            }
+            Err(i) => {
+                self.inner.insert(i, game);
+                i
+            }
+        };
+        &self.inner[i]
     }
 
-    pub fn delete(&mut self, name: impl AsRef<str>) -> Option<Game> {
-        let name = name.as_ref();
-        let i = self
-            .inner
-            .binary_search_by(|g| g.name.as_str().cmp(name))
-            .ok()?;
-        Some(self.inner.remove(i))
+    pub fn delete(&mut self, name: impl AsRef<str>) -> Result<Game> {
+        let (_, i) = self.get_idx_by_name(name)?;
+        Ok(self.inner.remove(i))
     }
 
     pub fn games(&self) -> &[Game] {
@@ -101,13 +106,20 @@ impl Games {
     }
 
     pub fn get_by_name(&self, name: impl AsRef<str>) -> Result<&Game> {
+        self.get_idx_by_name(name).map(|g| g.0)
+    }
+
+    pub fn get_idx_by_name(&self, name: impl AsRef<str>) -> Result<(&Game, usize)> {
         let name = name.as_ref();
         let name = slug::slugify(name);
 
-        let Some(game) = self.inner.iter().find(|g| slug::slugify(&g.name) == name) else {
+        let Ok(i) = self
+            .inner
+            .binary_search_by(|g| slug::slugify(&g.name).cmp(&name))
+        else {
             bail!("The game {name:?} does not exist")
         };
-        Ok(game)
+        Ok((&self.inner[i], i))
     }
 
     pub fn get_by_root(&self, path: impl AsRef<Path>) -> Option<&Game> {
@@ -205,7 +217,7 @@ impl std::fmt::Display for Games {
     }
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Game {
     name: String,
     root: PathBuf,
@@ -322,16 +334,6 @@ impl Game {
     }
 }
 
-impl PartialEq for Game {
-    fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
-            || self.root == other.root
-            || self.save_location == other.save_location
-    }
-}
-
-impl Eq for Game {}
-
 impl PartialOrd for Game {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
@@ -340,7 +342,7 @@ impl PartialOrd for Game {
 
 impl Ord for Game {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.name.cmp(&other.name)
+        slug::slugify(&self.name).cmp(&slug::slugify(&other.name))
     }
 }
 
