@@ -103,14 +103,11 @@ impl Games {
     pub fn get_by_name(&self, name: impl AsRef<str>) -> Result<&Game> {
         let name = name.as_ref();
         let name = slug::slugify(name);
-        if let Ok(i) = self
-            .inner
-            .binary_search_by(|g| slug::slugify(&g.name).cmp(&name))
-        {
-            Ok(&self.inner[i])
-        } else {
+
+        let Some(game) = self.inner.iter().find(|g| slug::slugify(&g.name) == name) else {
             bail!("The game {name:?} does not exist")
-        }
+        };
+        Ok(game)
     }
 
     pub fn get_by_root(&self, path: impl AsRef<Path>) -> Option<&Game> {
@@ -302,7 +299,9 @@ impl Game {
             save_location: save_location.unwrap_or(self.save_location),
             executable: executable.or(self.executable),
             executable_args: executable_args.or(self.executable_args),
-            environment_vars: environment_vars.map(HashMap::from_iter).or(self.environment_vars),
+            environment_vars: environment_vars
+                .map(HashMap::from_iter)
+                .or(self.environment_vars),
             run_commands: run_commands.or(self.run_commands),
         }
     }
