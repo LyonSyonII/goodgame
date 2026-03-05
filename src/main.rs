@@ -1,8 +1,10 @@
 mod cli;
 
-use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, Parser};
 use goodgame::games::{Game, Games};
+use rootcause::Result;
+use rootcause::option_ext::OptionExt;
+use rootcause::prelude::*;
 use std::{
     io::Seek,
     os::unix::ffi::OsStrExt,
@@ -95,7 +97,7 @@ fn add(
 ) -> Result<()> {
     let root = root
         .canonicalize()
-        .with_context(|| format!("Failed to get root {}", root.display()))?;
+        .context_with(|| format!("Failed to get root {}", root.display()))?;
 
     let original_game = games.get_by_name(&game).ok();
 
@@ -107,12 +109,12 @@ fn add(
     };
     let save_location = save_location
         .canonicalize()
-        .with_context(|| format!("Failed to get save location {}", save_location.display()))?;
+        .context_with(|| format!("Failed to get save location {}", save_location.display()))?;
 
     if let Some(exe) = &mut executable {
         *exe = exe
             .canonicalize()
-            .with_context(|| format!("Failed to get executable {}", exe.display()))?;
+            .context_with(|| format!("Failed to get executable {}", exe.display()))?;
     } else {
         executable = original_game
             .and_then(|g| g.executable().cloned())
@@ -129,7 +131,7 @@ fn add(
 
     let save_symlink = root.join("gg-save-loc");
     if !save_symlink.exists() {
-        std::os::unix::fs::symlink(&save_location, &save_symlink).with_context(|| {
+        std::os::unix::fs::symlink(&save_location, &save_symlink).context_with(|| {
             format!(
                 "Could not create symlink from {} to {}",
                 save_location.display(),
@@ -150,7 +152,7 @@ fn add(
 
     let backups_location = game.backups_path();
     if !backups_location.exists() {
-        std::fs::create_dir(&backups_location).with_context(|| {
+        std::fs::create_dir(&backups_location).context_with(|| {
             format!(
                 "Could not create backups location {}",
                 backups_location.display()
@@ -181,7 +183,7 @@ fn edit(
     run_commands: Option<Vec<String>>,
     game: Option<impl AsRef<str>>,
     mut games: Games,
-) -> std::result::Result<(), anyhow::Error> {
+) -> Result<()> {
     use std::io::Write;
 
     let original = games.try_get(game)?.clone();
@@ -202,7 +204,7 @@ fn edit(
         return Ok(());
     }
 
-    let fname = format!(".gg-{}", original.name());
+    let fname = format!(".gg-{}.yaml", original.name());
     let fpath = PathBuf::from("/tmp").join(fname);
     let mut tmp = std::fs::OpenOptions::new()
         .read(true)
@@ -210,23 +212,25 @@ fn edit(
         .create(true)
         .truncate(true)
         .open(&fpath)
-        .with_context(|| {
+        .context_with(|| {
             format!(
                 "Could not create temporary file for game config to {}",
                 fpath.display()
             )
         })?;
     write!(tmp, "{original}")
-        .with_context(|| format!("Could not write game config to {}", fpath.display()))?;
+        .context_with(|| format!("Could not write game config to {}", fpath.display()))?;
 
     let cmd = games
         .commands_to_process(&[format!("$EDITOR '{}'", fpath.display())], None)
-        .unwrap();
-    run_command(Some(cmd), "editing game", fpath.parent().unwrap())?;
+        .ok_or_report()
+        .context("Failed to create process from commands")?;
+    run_command(Some(cmd), "editing game", fpath.parent().ok_or_report()?)
+        .context_with(|| "Failed to edit game with commands")?;
 
     tmp.seek(std::io::SeekFrom::Start(0))?;
-    let new_game = serde_json::from_reader::<_, Game>(tmp)
-        .with_context(|| format!("Could not parse temporary file {}", fpath.display()))?;
+    let new_game = serde_saphyr::from_reader::<_, Game>(tmp)
+        .context_with(|| format!("Could not parse temporary file {}", fpath.display()))?;
 
     let _ = games.delete(original.name());
     games.push(new_game);
@@ -264,14 +268,14 @@ fn backup(game: Option<&str>, desc: Option<&str>, skip_cloud: bool, games: &Game
 
     let zstd_path = backups_path.with_extension("tar.zst");
     let zstd = std::fs::File::create(&zstd_path)
-        .with_context(|| format!("Could not create save backup {}", zstd_path.display()))?;
+        .context_with(|| format!("Could not create save backup {}", zstd_path.display()))?;
     let zstd = zstd::Encoder::new(zstd, 9)?;
 
     let mut tar_builder = tar::Builder::new(zstd);
     if game.save_location().is_dir() {
         tar_builder
             .append_dir_all("", game.save_location())
-            .with_context(|| {
+            .context_with(|| {
                 format!(
                     "Could not archive directory {}",
                     game.save_location().display()
@@ -280,17 +284,17 @@ fn backup(game: Option<&str>, desc: Option<&str>, skip_cloud: bool, games: &Game
     } else {
         tar_builder
             .append_file(
-                game.save_location().file_name().unwrap(),
+                game.save_location().file_name().ok_or_report()?,
                 &mut std::fs::File::open(game.save_location())?,
             )
-            .with_context(|| {
+            .context_with(|| {
                 format!("Could not archive file {}", game.save_location().display())
             })?;
     }
     tar_builder
         .into_inner()
         .and_then(|zstd| zstd.finish())
-        .with_context(|| format!("Could not create backup {}", zstd_path.display()))?;
+        .context_with(|| format!("Could not create backup {}", zstd_path.display()))?;
 
     println!("Created backup {}", zstd_path.display());
 
@@ -312,11 +316,11 @@ fn restore(game: String, target: String, skip_cloud: bool, games: Games) -> Resu
     let target_path = backups_path.join(&target);
     target_path
         .try_exists()
-        .with_context(|| format!("The backup {} does not exist", target_path.display()))?;
+        .context_with(|| format!("The backup {} does not exist", target_path.display()))?;
     let target_idx = target
         .split("-")
         .nth(1)
-        .unwrap()
+        .ok_or_report()?
         .trim_end_matches(|c: char| !c.is_ascii_digit());
     backup(
         Some(game.name()),
@@ -326,13 +330,13 @@ fn restore(game: String, target: String, skip_cloud: bool, games: Games) -> Resu
     )?;
 
     let target = std::fs::File::open(&target_path)
-        .with_context(|| format!("Could not open backup {}", target_path.display()))?;
+        .context_with(|| format!("Could not open backup {}", target_path.display()))?;
     let zstd = zstd::Decoder::new(target)?;
 
     let save_location = game.save_location();
     tar::Archive::new(zstd)
         .unpack(save_location)
-        .with_context(|| {
+        .context_with(|| {
             format!(
                 "Could not extract backup {} to {}",
                 target_path.display(),
@@ -369,11 +373,7 @@ fn open(game: String, save: bool, games: Games) -> Result<()> {
     Ok(())
 }
 
-fn run(
-    game: Option<String>,
-    skip_cloud: bool,
-    games: Games,
-) -> std::result::Result<(), anyhow::Error> {
+fn run(game: Option<String>, skip_cloud: bool, games: Games) -> Result<()> {
     let game = games.try_get(game)?;
     run_command(games.run_command(game), "run game", game.root())?;
 
@@ -382,7 +382,7 @@ fn run(
     Ok(())
 }
 
-fn print_config(games: Games) -> std::result::Result<(), anyhow::Error> {
+fn print_config(games: Games) -> Result<()> {
     println!("{:#?}", games.config());
     Ok(())
 }
@@ -392,29 +392,34 @@ fn run_command(cmd: Option<Command>, desc: &str, cwd: &Path) -> Result<()> {
         println!("Command {desc} not configured, skipping...");
         return Ok(());
     };
-    println!(
-        "[gg] Running {desc}: {}",
-        cmd.get_args()
-            .nth(1)
-            .unwrap_or(std::ffi::OsStr::from_bytes(b"<EMPTY COMMAND>"))
-            .display()
-    );
 
-    let original_dir = std::env::current_dir()?;
+    // let first_cmd = cmd
+    //     .get_args()
+    //     .nth(1)
+    //     .unwrap_or(std::ffi::OsStr::from_bytes(b"<EMPTY COMMAND>"))
+    //     .to_string_lossy()
+    //     .to_string();
+    let cmd_description = cmd
+        .get_args()
+        .fold(std::ffi::OsString::new(), |mut acc, c| {
+            acc.push(" ");
+            acc.push(c);
+            acc
+        });
+
+    println!("[gg] Running {desc}: {cmd_description:?}");
+
+    let original_dir = std::env::current_dir().context("Could not get current directory")?;
     std::env::set_current_dir(cwd)
-        .with_context(|| format!("Could not access directory {}", cwd.display()))?;
+        .context_with(|| format!("Could not access directory {}", cwd.display()))?;
 
-    let out = cmd.status().with_context(|| {
-        format!(
-            "Failed to execute command '{desc}': {}",
-            cmd.get_args().nth(1).unwrap().display()
-        )
-    })?;
+    let out = cmd
+        .status()
+        .context_with(|| format!("Failed to execute command '{desc}': {cmd_description:?}",))?;
     if !out.success() {
         bail!(
-            "Command '{desc}' exited with code {}: {}",
+            "Command '{desc}' exited with code {}: {cmd_description:?}",
             out.code().unwrap_or(0),
-            cmd.get_args().nth(1).unwrap().display()
         )
     }
 

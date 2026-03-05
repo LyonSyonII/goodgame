@@ -1,15 +1,28 @@
+use std::collections::HashMap;
+
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize)]
 pub struct Config {
     pub shell: String,
     pub run: Run,
     pub backup: Backup,
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            shell: String::from("bash"),
+            run: Default::default(),
+            backup: Default::default(),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Default)]
 pub struct Run {
     pub commands: Vec<String>,
+    pub environment: HashMap<String, String>,
 }
 
 #[derive(Debug, Deserialize, Default)]

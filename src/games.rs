@@ -1,5 +1,6 @@
 use crate::config::Config;
-use anyhow::{Context, Result, anyhow, bail};
+use rootcause::Result;
+use rootcause::prelude::*;
 use std::{
     collections::HashMap,
     io::Seek,
@@ -16,18 +17,18 @@ pub struct Games {
 
 impl Games {
     pub fn load() -> Result<Games> {
-        let config = std::fs::File::open("/etc/goodgame/config.json")
-            .with_context(|| "Could not open config file /etc/goodgame/config.json")
+        let config = std::fs::File::open("/etc/goodgame/config.yaml")
+            .context("Could not open config file /etc/goodgame/config.yaml")
             .and_then(|config| {
-                serde_json::from_reader::<_, Config>(config)
-                    .with_context(|| "Could not parse config file /etc/goodgame/config.json")
+                serde_saphyr::from_reader::<_, Config>(config)
+                    .context("Could not parse config file /etc/goodgame/config.yaml")
             })
             .unwrap_or_default();
 
         let data_dir = std::env::var("XDG_DATA_HOME")
             .or_else(|_| std::env::var("HOME").map(|h| h + "/.local/share"))
             .map(|s| PathBuf::from(s + "/goodgame"))
-            .map_err(|_| anyhow!("Could not obtain data directory"))?;
+            .context("Could not obtain data directory")?;
         std::fs::create_dir_all(&data_dir)?;
 
         let games_path = data_dir.join(Self::games_file_name());
@@ -37,12 +38,12 @@ impl Games {
             .truncate(false)
             .create(true)
             .open(&games_path)
-            .with_context(|| format!("Could not read {}", games_path.display()))?;
+            .context_with(|| format!("Could not read {}", games_path.display()))?;
         let games = if games_file.metadata()?.len() == 0 {
             Vec::new()
         } else {
-            serde_json::from_reader::<_, Vec<Game>>(&games_file)
-                .with_context(|| format!("Could not parse {}", games_path.display()))?
+            serde_saphyr::from_reader::<_, Vec<Game>>(&games_file)
+                .context_with(|| format!("Could not parse {}", games_path.display()))?
         };
 
         Ok(Games {
@@ -61,8 +62,10 @@ impl Games {
         }
         self.games_file.rewind()?;
         self.inner.sort_unstable(); // TODO: Unnecessary in theory, but good for migration
-        serde_json::to_writer(&mut self.games_file, &self.inner)
-            .with_context(|| format!("Could not save to {}", self.games_path().display()))
+        serde_saphyr::to_io_writer(&mut self.games_file, &self.inner)
+            .context_with(|| format!("Could not save to {}", self.games_path().display()))?;
+
+        Ok(())
     }
 
     /// Pushes or updates the provided game.
@@ -98,7 +101,7 @@ impl Games {
     }
 
     pub fn games_file_name() -> &'static str {
-        "games.json"
+        "games.yaml"
     }
 
     pub fn games_path(&self) -> PathBuf {
@@ -161,14 +164,14 @@ impl Games {
             return None;
         }
         let mut cmds = cmds.join("&&");
-        let mut p = std::process::Command::new(&self.config.shell);
+        let mut p = std::process::Command::new("/usr/bin/env");
         if let Some(game) = game {
             cmds = game.replace_vars(cmds);
             if let Some(vars) = &game.environment_vars {
                 p.envs(vars);
             }
         }
-        p.args([String::from("-c"), cmds]);
+        p.args([self.config.shell.clone(), String::from("-c"), cmds]);
         Some(p)
     }
     pub fn cloud_init_command(&self, game: &Game) -> Option<std::process::Command> {
@@ -188,7 +191,7 @@ impl Games {
                 let global_run = self.config.run.commands.join("&&");
                 for cmd in cmds.iter_mut() {
                     if let Some(i) = cmd.find("@RUN") {
-                        cmd.replace_range(i..i + "@RUN".len(), &global_run);
+                        cmd.replace_range(i..(i + "@RUN".len()), &global_run);
                     }
                 }
                 cmds.into()
@@ -200,20 +203,7 @@ impl Games {
 
 impl std::fmt::Display for Games {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Trick serde_json into writing to std::fmt::Formatter
-        struct FormatterWriter<'a, 'b>(&'a mut std::fmt::Formatter<'b>);
-        impl std::io::Write for FormatterWriter<'_, '_> {
-            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-                // SAFETY: The original message is already utf8
-                let FormatterWriter(fmt) = self;
-                let _ = fmt.write_str(unsafe { std::str::from_utf8_unchecked(buf) });
-                Ok(buf.len())
-            }
-            fn flush(&mut self) -> std::io::Result<()> {
-                Ok(())
-            }
-        }
-        serde_json::to_writer_pretty(FormatterWriter(f), &self.games()).map_err(|_| std::fmt::Error)
+        serde_saphyr::to_fmt_writer(f, &self.games()).map_err(|_| std::fmt::Error)
     }
 }
 
@@ -235,7 +225,7 @@ impl Game {
         save_location: PathBuf,
         executable: Option<PathBuf>,
         executable_args: Option<Vec<String>>,
-        environment_vars: Option<Vec<(String, String)>>,
+        environment_vars: Option<impl IntoIterator<Item = (String, String)>>,
         run_commands: Option<Vec<String>>,
     ) -> Self {
         Self {
@@ -348,19 +338,6 @@ impl Ord for Game {
 
 impl std::fmt::Display for Game {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Trick serde_json into writing to std::fmt::Formatter
-        struct FormatterWriter<'a, 'b>(&'a mut std::fmt::Formatter<'b>);
-        impl std::io::Write for FormatterWriter<'_, '_> {
-            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-                // SAFETY: The original message is already utf8
-                let FormatterWriter(fmt) = self;
-                let _ = fmt.write_str(unsafe { std::str::from_utf8_unchecked(buf) });
-                Ok(buf.len())
-            }
-            fn flush(&mut self) -> std::io::Result<()> {
-                Ok(())
-            }
-        }
-        serde_json::to_writer_pretty(FormatterWriter(f), &self).map_err(|_| std::fmt::Error)
+        serde_saphyr::to_fmt_writer(f, &self).map_err(|_| std::fmt::Error)
     }
 }

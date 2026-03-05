@@ -1,6 +1,11 @@
-{ pkgs, lib, config, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  ...
+}:
 let
-  package = (pkgs.callPackage ./package.nix {});
+  package = (pkgs.callPackage ./package.nix { });
   cfg = config.programs.goodgame;
 in
 {
@@ -22,15 +27,25 @@ in
         commands = lib.mkOption {
           type = lib.types.listOf lib.types.str;
           description = "List of commands to run the game";
-          default = [];
+          default = [ ];
           example = [ "WINEPREFIX=$(realpath ./wine) wine Minecraft.exe" ];
+        };
+        environment = lib.mkOption {
+          type = lib.types.attrs;
+          description = "Environment variables that will be set when the game runs";
+          default = { };
+          example = {
+            MANGOHUD = 1;
+            MANGOHUD_CONFIG = "read_cfg,no_display";
+            PROTON_ADD_CONFIG = "fsr4rdna3,wayland";
+          };
         };
       };
       backup = {
         cloudInitCommands = lib.mkOption {
           type = lib.types.listOf lib.types.str;
           description = "List of commands to initialize the cloud backup.\nAll the commands will be concatenated with '&&'.";
-          default = [];
+          default = [ ];
           example = [
             "git init"
             "echo -e '*\\n!gg-saves\\n!.gitignore' > .gitignore"
@@ -43,7 +58,7 @@ in
         cloudCommitCommands = lib.mkOption {
           type = lib.types.listOf lib.types.str;
           description = "List of commands to commit changes to cloud backup.\nAll the commands will be concatenated with '&&'.";
-          default = [];
+          default = [ ];
           example = [
             "git add ."
             "git commit -m 'backup'"
@@ -52,7 +67,7 @@ in
         cloudPushCommands = lib.mkOption {
           type = lib.types.listOf lib.types.str;
           description = "List of commands to push changes to cloud backup.\nAll the commands will be concatenated with '&&'.";
-          default = [];
+          default = [ ];
           example = [
             "git push"
           ];
@@ -65,6 +80,6 @@ in
     environment.systemPackages = [
       cfg.package
     ];
-    environment.etc."goodgame/config.json".text = builtins.toJSON cfg.settings;
+    environment.etc."goodgame/config.yaml".text = lib.generators.toYAML { } cfg.settings;
   };
 }
