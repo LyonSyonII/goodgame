@@ -8,7 +8,7 @@ clap = { version = "4.5.60", features = ["color", "derive", "env", "help", "stri
 clap_complete = { version = "4.5.66", features = ["unstable-dynamic"] }
 serde = { version = "1.0.228", features = ["derive"] }
 zstd = { version = "0.13.3", default-features = false }
-tar = { version = "0.4.44", default-features = false }
+tar = { version = "0.4.45", default-features = false }
 slug = "0.1.6"
 inquire = { version = "0.9.4", default-features = false, features = ["crossterm", "fuzzy"] }
 walkdir = "2.5.0"
